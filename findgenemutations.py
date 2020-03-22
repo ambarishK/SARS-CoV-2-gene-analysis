@@ -25,7 +25,6 @@ def find_genes(genome, boundaries, tolerance, reference_genes, gene_names):
         # Finding starting index of prefix and suffix with minimal edit distance to reference gene.
         minPrefix = min(prefixes, key=lambda x : pylcs.edit_distance(seq[x:x+64], ref_prefix))
         minSuffix = min(suffixes, key=lambda x : pylcs.edit_distance(seq[x:x+64], ref_suffix))
-        print(seq[minSuffix:minSuffix+64])
         genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, pylcs.edit_distance(ref, seq[minPrefix:minSuffix + 64])])
 
     return genes
