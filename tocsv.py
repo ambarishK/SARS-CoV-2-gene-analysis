@@ -28,4 +28,4 @@ df2 = pd.read_csv('quality.csv').set_index('Accession ID')
 df3 = df1.join(df2, how = 'inner')
 df3 = df3.loc[df3['Sequence Quality'] != 'Low']
 df3 = df3.loc[df3['Nuc.Completeness'] == 'Complete']
-df3.to_csv('MERGE.csv')
+df3.to_csv('Genome_data.csv')
