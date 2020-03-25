@@ -1,0 +1,1 @@
+File gisaid_cov2020_sequence.fasta used in findgenemutations.py script is missing in this repository because genome sequences from GISAID cannot be shared due to their TOS. To obtain this data please register on gisaid.org.
