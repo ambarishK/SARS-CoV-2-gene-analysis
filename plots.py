@@ -7,16 +7,12 @@ Original file is located at
     https://colab.research.google.com/drive/1ESbRMgDbY6NNdpENv_TFpuRjw5DmoVUW
 """
 
-# Commented out IPython magic to ensure Python compatibility.
-from google.colab import drive 
 
-drive.mount('/content/drive')
-# %cd /content/drive/My Drive/Colab Notebooks
 
 import pandas as pd
-DF = pd.read_csv('Genome_Data.csv')
+DF = pd.read_csv('Genome_Data-25_03_2020.csv')
 DF['Date'] = pd.to_datetime(DF['Date']) #converting data column to data type
-DF = DF.loc[DF['Nuc.Completeness'] == 'Complete'] #only using rows which have complete genome data
+#DF = DF.loc[DF['Nuc.Completeness'] == 'Complete'] #only using rows which have complete genome data
 
 DF.sort_values(by ='Date',ascending = False, inplace= True)
 DF = DF.head((len(DF)-6)) #deleting outlier data
@@ -25,18 +21,35 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 
-def chart(gene,l_n = 0): #function which makes logarythmic/normal plot based on a column from dataframe
+def chart(gene,l_n, plot_color = 'blue'): #function which makes logarythmic/normal plot based on a column from dataframe
   list_of_datetimes = DF['Date'].tolist()
   dates = matplotlib.dates.date2num(list_of_datetimes)
   values = DF[gene].tolist()
   if l_n == 'l':
     values = np.log(values)
-  plt.plot_date(dates, values, color='red', alpha = 0.2)
-  plt.title('Number of mutations in whole genome of SARS-CoV-2', fontsize = 14.5)
-  plt.ylabel('Log Scale, no. mutations')
+  x = plt.plot_date(dates, values, color=plot_color, alpha = 0.2)
+
+  plt.title( gene +' of SARS-CoV-2', loc='left',fontsize = 10)
+  plt.ylabel('Mutations', fontsize = 10)
   plt.xlabel('Time')
-  plt.xticks(rotation=35)
+  plt.xticks(fontsize = 10, rotation=35)
   plt.tight_layout()
-  plt.savefig('SARS-CoV-2_Mutations_in_time.png')
-chart('whole_genome','l')
+  #plt.savefig(gene + '.png')
+
+
+
+Genes = [ 'E_gene', 'M_gene', 'S_gene', 'N_gene','orf1ab', 'ORF6', 'ORF7', 'ORF8', 'ORF10','ORF3a']
+a=1
+
+for gene in Genes:
+
+    plt.subplot(1,2,1)
+    chart(gene, 'e')
+    plt.subplot(1, 2, 2)
+    chart(gene + '_translation', 'e', 'red')
+    plt.savefig('plots/'+ gene + '.png')
+    plt.show()
+chart('whole_genome', 'e')
+plt.savefig('plots/whole_genome' + '.png')
+
 
