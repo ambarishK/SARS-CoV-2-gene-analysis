@@ -1,7 +1,12 @@
 import os
 import re
 import pylcs
+from tqdm import tqdm
 import itertools
+from multiprocessing import Pool
+from functools import partial
+import time
+
 def transcribe(sequence):
     return sequence.replace('T', 'U')
 
@@ -48,12 +53,14 @@ def find_genes(genome, boundaries, tolerance, reference_genes, gene_names):
         prefixes = [m.start() for m in re.finditer('(?=ATG.{61})', seq)]
         suffixes = [m.start() for m in re.finditer('(?=.{61}(TGA|TAG|TAA))', seq)]
         # Finding starting index of prefix and suffix with minimal edit distance to reference gene.
-        minPrefix = min(prefixes, key=lambda x : pylcs.edit_distance(seq[x:x+64], ref_prefix))
-        minSuffix = min(suffixes, key=lambda x : pylcs.edit_distance(seq[x:x+64], ref_suffix))
-        genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, pylcs.edit_distance(ref, seq[minPrefix:minSuffix + 64])])
-        genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, pylcs.edit_distance(translate_rna((transcribe(ref))), translate_rna(transcribe((seq[minPrefix:minSuffix + 64]))))])
+        if len(prefixes) > 0 and len(suffixes) > 0:
+            minPrefix = min(prefixes, key=lambda x : pylcs.edit_distance(seq[x:x+64], ref_prefix))
+            minSuffix = min(suffixes, key=lambda x : pylcs.edit_distance(seq[x:x+64], ref_suffix))
+            genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, pylcs.edit_distance(ref, seq[minPrefix:minSuffix + 64])])
+            genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, pylcs.edit_distance(translate_rna((transcribe(ref))), translate_rna(transcribe((seq[minPrefix:minSuffix + 64]))))])
 
-    return genes
+    edit_distance = pylcs.edit_distance(genome, ref_genome)
+    return genes, edit_distance
 
 def get_reference_gene():
     boundaries = list()
@@ -79,19 +86,45 @@ if __name__ == '__main__':
 
     ref_genome, boundaries, reference_genes, gene_names = get_reference_gene()
 
-    with open('gisaid_cov2020_sequences.fasta', 'r') as f, open('distances.txt', 'w') as output_file:
+    genomes = []
+    genomes_headers = []
+
+    time_start = time.time()
+
+    with open('gisaid_cov2020_sequences.fasta', 'r') as f:
         genome = ''
         genome_header = ''
-        for line in f:
+        for line in tqdm(f):
             if line.startswith('>'):
                 if len(genome_header) > 0 and len(genome) > 29000:
-                    output_file.write(genome_header)
-                    genome = genome.upper()
-                    genes = find_genes(genome, boundaries, 128, reference_genes, gene_names)
-                    genes.append(['whole_genome', 0, len(genome), pylcs.edit_distance(genome, ref_genome)])
-                    output_file.write(str(genes) + '\n')
+                    genomes_headers.append(genome_header)
+                    genomes.append(genome.upper())
                 genome=''
                 genome_header = line
             else:
                 genome += line.rstrip()
      
+    print("We have in total {} genomes collected from the fasta file".format(len(genomes)))
+
+    try:
+        pool = Pool(96)
+        genes_and_distances = pool.map(partial(find_genes,
+            boundaries=boundaries,
+            tolerance=128,
+            reference_genes=reference_genes,
+            gene_names=gene_names), genomes)
+    finally:
+        pool.close()
+        pool.join()
+
+    all_genes, edit_distances = zip(*genes_and_distances)
+
+    print("In total we have parsed {} genomes".format(len(all_genes)))
+
+    with open('distances.txt', 'w') as output_file:
+        for genome_header, genes, edit_distance in tqdm(zip(genomes_headers, all_genes, edit_distances)):
+            output_file.write(genome_header)
+            genes.append(['whole_genome', 0, len(genome), edit_distance])
+            output_file.write(str(genes) + '\n')
+    
+    print("Total time {}".format(time.time() - time_start))
