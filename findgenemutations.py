@@ -1,10 +1,11 @@
 import os
 import re
-import pylcs
 from tqdm import tqdm
 import itertools
 from multiprocessing import Pool
+from multiprocessing import cpu_count
 from functools import partial
+import Levenshtein
 import time
 
 def transcribe(sequence):
@@ -54,12 +55,12 @@ def find_genes(genome, boundaries, tolerance, reference_genes, gene_names):
         suffixes = [m.start() for m in re.finditer('(?=.{61}(TGA|TAG|TAA))', seq)]
         # Finding starting index of prefix and suffix with minimal edit distance to reference gene.
         if len(prefixes) > 0 and len(suffixes) > 0:
-            minPrefix = min(prefixes, key=lambda x : pylcs.edit_distance(seq[x:x+64], ref_prefix))
-            minSuffix = min(suffixes, key=lambda x : pylcs.edit_distance(seq[x:x+64], ref_suffix))
-            genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, pylcs.edit_distance(ref, seq[minPrefix:minSuffix + 64])])
-            genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, pylcs.edit_distance(translate_rna((transcribe(ref))), translate_rna(transcribe((seq[minPrefix:minSuffix + 64]))))])
+            minPrefix = min(prefixes, key=lambda x : Levenshtein.distance(seq[x:x+64], ref_prefix))
+            minSuffix = min(suffixes, key=lambda x : Levenshtein.distance(seq[x:x+64], ref_suffix))
+            genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, Levenshtein.distance(ref, seq[minPrefix:minSuffix + 64])])
+            genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, Levenshtein.distance(translate_rna((transcribe(ref))), translate_rna(transcribe((seq[minPrefix:minSuffix + 64]))))])
 
-    edit_distance = pylcs.edit_distance(genome, ref_genome)
+    edit_distance = Levenshtein.distance(genome, ref_genome)
     return genes, edit_distance
 
 def get_reference_gene():
@@ -107,7 +108,7 @@ if __name__ == '__main__':
     print("We have in total {} genomes collected from the fasta file".format(len(genomes)))
 
     try:
-        pool = Pool(96)
+        pool = Pool(cpu_count())
         genes_and_distances = pool.map(partial(find_genes,
             boundaries=boundaries,
             tolerance=128,
