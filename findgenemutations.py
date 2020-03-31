@@ -58,7 +58,7 @@ def find_genes(genome, boundaries, tolerance, reference_genes, gene_names):
             minPrefix = min(prefixes, key=lambda x : Levenshtein.distance(seq[x:x+64], ref_prefix))
             minSuffix = min(suffixes, key=lambda x : Levenshtein.distance(seq[x:x+64], ref_suffix))
             genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, Levenshtein.distance(ref, seq[minPrefix:minSuffix + 64])])
-            genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, Levenshtein.distance(translate_rna((transcribe(ref))), translate_rna(transcribe((seq[minPrefix:minSuffix + 64]))))])
+            genes.append([name + '_translation', interval[0] + minPrefix, interval[0] + minSuffix + 64, Levenshtein.distance(translate_rna((transcribe(ref))), translate_rna(transcribe((seq[minPrefix:minSuffix + 64]))))])
 
     edit_distance = Levenshtein.distance(genome, ref_genome)
     return genes, edit_distance
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
     time_start = time.time()
 
-    with open('gisaid_cov2020_sequences.fasta', 'r') as f:
+    with open('Cleaned_up_genes.fasta', 'r') as f:
         genome = ''
         genome_header = ''
         for line in tqdm(f):
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     print("In total we have parsed {} genomes".format(len(all_genes)))
 
     with open('distances.txt', 'w') as output_file:
-        for genome_header, genes, edit_distance in tqdm(zip(genomes_headers, all_genes, edit_distances)):
+        for genome_header, genes, edit_distance, genome in tqdm(zip(genomes_headers, all_genes, edit_distances, genomes)):
             output_file.write(genome_header)
             genes.append(['whole_genome', 0, len(genome), edit_distance])
             output_file.write(str(genes) + '\n')
