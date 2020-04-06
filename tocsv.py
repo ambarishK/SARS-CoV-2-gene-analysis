@@ -51,7 +51,7 @@ print(df['whole_genome_end'].mean())
 
 df.pop('whole_genome' + '_start')
 df.pop('whole_genome' + '_end')
-df.to_csv('Genome_data-X.csv')
+df.to_csv('Genome_data-X.csv', index=False)
 
 
 
