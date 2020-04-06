@@ -3,7 +3,7 @@ a=0 ## checking len of fasta
 #previous_genomes = pd.read_csv('sth.csv')
 #genomes_published = pd.read_csv('quality.csv')
 output = []
-with open('seq-03.04.2020.fasta', 'r') as fasta_file:
+with open('gisaid_cov2020_sequences (4).fasta', 'r') as fasta_file:
     Temp_dict = {}
     for line in fasta_file:
         if line.startswith('>'):
@@ -32,7 +32,7 @@ with open('seq-03.04.2020.fasta', 'r') as fasta_file:
         # temp_df = temp_df.loc[temp_df['Sequence Quality'] != 'Low']
         # if(len(temp_df) != 0 ):
         a+=1
-        output.append(header.rstrip())
+        output.append(header.replace(' ','').rstrip())
         output.append(genome.rstrip())
 print(a)
 with open("Cleaned_up_genes.fasta", "w") as f:
