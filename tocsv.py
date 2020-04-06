@@ -12,7 +12,7 @@ with open('distances.txt', 'r') as file:
         a = header.rstrip().split('|')[-1]
         List = ast.literal_eval(genome)
         dict = {'Accession ID' : header.rstrip().split('|')[1]}
-        dict['Date'] = a
+        dict['date'] = a
         for gene in List:
             dict[gene[0]] = gene[3]
             dict[gene[0] + '_start'] = gene[1]
@@ -24,7 +24,7 @@ with open('distances.txt', 'r') as file:
         temp_cols.append(i+'_start')
         temp_cols.append(i+'_end')
         temp_cols.append(i+'_len')
-    csv_columns = ['Accession ID', 'Date', 'E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10','S_gene_translation', 'ORF7_translation', 'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation', 'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation', 'whole_genome']
+    csv_columns = ['Accession ID', 'date', 'E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10','S_gene_translation', 'ORF7_translation', 'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation', 'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation', 'whole_genome']
     csv_columns+=temp_cols
 
     with open('Genome_Data-31_03_2020.csv', 'w') as csvfile:
