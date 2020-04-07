@@ -83,8 +83,8 @@ def get_reference_gene():
     return ref_genome, boundaries, reference_genes, gene_names
 
 
-if __name__ == '__main__':
 
+def count_all():
     ref_genome, boundaries, reference_genes, gene_names = get_reference_gene()
 
     genomes = []
@@ -129,3 +129,6 @@ if __name__ == '__main__':
             output_file.write(str(genes) + '\n')
     
     print("Total time {}".format(time.time() - time_start))
+
+if __name__ == '__main__':
+    count_all()
