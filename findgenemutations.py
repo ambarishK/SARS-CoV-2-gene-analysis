@@ -35,7 +35,7 @@ def translate_rna(s):
     l = [codon2aa.get(s[n:n+3], 'X') for n in range(0, len(s), 3)]
     return "".join(l)
 
-def find_genes(genome, boundaries, tolerance, reference_genes, gene_names):
+def find_genes(genome, boundaries, tolerance, reference_genes, gene_names, ref_genome):
     for bounds in boundaries:
         bounds[0] -= tolerance
         bounds[1] += tolerance
@@ -113,7 +113,7 @@ def count_all():
             boundaries=boundaries,
             tolerance=128,
             reference_genes=reference_genes,
-            gene_names=gene_names), genomes)
+            gene_names=gene_names, ref_genome=ref_genome), genomes)
     finally:
         pool.close()
         pool.join()
