@@ -58,7 +58,10 @@ def find_genes(genome, boundaries, tolerance, reference_genes, gene_names, ref_g
             minPrefix = min(prefixes, key=lambda x : Levenshtein.distance(seq[x:x+64], ref_prefix))
             minSuffix = min(suffixes, key=lambda x : Levenshtein.distance(seq[x:x+64], ref_suffix))
             genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, Levenshtein.distance(ref, seq[minPrefix:minSuffix + 64])])
-            genes.append([name + '_translation', interval[0] + minPrefix, interval[0] + minSuffix + 64, Levenshtein.distance(translate_rna((transcribe(ref))), translate_rna(transcribe((seq[minPrefix:minSuffix + 64]))))])
+            genes.append([name + '_translation', interval[0] + minPrefix,
+                          interval[0] + minSuffix + 64, Levenshtein.distance(translate_rna((transcribe(ref))),
+                          translate_rna(transcribe((seq[minPrefix:minSuffix + 64]))))])
+            genes.append([name + '_N', interval[0] + minPrefix, interval[0] + minSuffix + 64, len(re.findall('[^ACTG]', seq[minPrefix:minSuffix+64]))])
 
     edit_distance = Levenshtein.distance(genome, ref_genome)
     return genes, edit_distance
