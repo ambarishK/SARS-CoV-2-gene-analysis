@@ -24,7 +24,8 @@ def distances_tocsv(file='distances.txt'):
             temp_cols.append(i+'_start')
             temp_cols.append(i+'_end')
             temp_cols.append(i+'_len')
-        csv_columns = ['name','date','Accession ID', 'E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10','S_gene_translation', 'ORF7_translation', 'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation', 'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation', 'whole_genome']
+        csv_columns = ['name','date','Accession ID', 'E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10','S_gene_translation', 'ORF7_translation', 'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation', 'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation', 'whole_genome','M_gene_N', 'N_gene_N_end', 'N_gene_N_len', 'orf1ab_N_end', 'ORF3a_N_end', 'ORF6_N_end', 'ORF10_N_end', 'orf1ab_N_start', 'ORF8_N_len', 'N_gene_N', 'M_gene_N_len', 'ORF10_N_len', 'ORF7_N_end', 'ORF7_N_len', 'ORF3a_N_start', 'M_gene_N_end', 'ORF3a_N', 'ORF7_N_start', 'ORF8_N', 'ORF7_N', 'M_gene_N_start', 'ORF8_N_start', 'S_gene_N_len', 'S_gene_N_start', 'ORF6_N_len', 'ORF8_N_end', 'ORF6_N_start', 'ORF10_N_start', 'E_gene_N_end', 'E_gene_N', 'ORF3a_N_len', 'S_gene_N_end', 'ORF10_N', 'N_gene_N_start', 'E_gene_N_start', 'orf1ab_N', 'orf1ab_N_len', 'E_gene_N_len', 'ORF6_N', 'S_gene_N']
+
         csv_columns+=temp_cols
         with open(output_file, 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
@@ -37,11 +38,14 @@ def distances_tocsv(file='distances.txt'):
     for gene in ['E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10']:
         df = df[df[gene+'_len'] == Ref_len[gene]+1]
         x= gene+'_translation'
-
+        y= gene+'_N'
         #print(df.sort_values(by=gene, ascending=False))
         df.pop(x + '_start')
         df.pop(x + '_end')
         df.pop(x + '_len')
+        df.pop(y + '_start')
+        df.pop(y + '_end')
+        df.pop(y + '_len')
 
     df['genomic_len'] = df['ORF10_end'] - df['orf1ab_start']
     #print(df.sort_values(by='S_gene', ascending=False))
