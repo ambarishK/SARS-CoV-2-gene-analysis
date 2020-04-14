@@ -54,8 +54,16 @@ def distances_tocsv(file='distances.txt'):
     df.pop('whole_genome' + '_start')
     df.pop('whole_genome' + '_end')
     df.set_index('name')
+    df['sum'] = df.apply(lambda
+                             row: row.E_gene + row.M_gene + row.N_gene + row.S_gene + row.orf1ab + row.ORF3a + row.ORF6 + row.ORF7 + row.ORF8 + row.ORF10,
+                         axis=1)
+    df['sum_N'] = df.apply(lambda
+                               row: row.E_gene_N + row.M_gene_N + row.N_gene_N + row.S_gene_N + row.orf1ab_N + row.ORF3a_N + row.ORF6_N + row.ORF7_N + row.ORF8_N + row.ORF10_N,
+                           axis=1)
+
     #df['whole_genome'] = df.apply(lambda row: row.E_gene + row.M_gene + row.N_gene + row.S_gene + row.orf1ab + row.ORF3a+ row.ORF6 + row.ORF7 + row.ORF8 +row.ORF10, axis = 1)
     df.to_csv(output_file, index=False)
+
 
 if __name__ == "__main__":
     distances_tocsv()
