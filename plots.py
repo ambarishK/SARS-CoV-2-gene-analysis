@@ -21,12 +21,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 
-DF['sum'] = DF.apply(lambda
-                         row: row.E_gene + row.M_gene + row.N_gene + row.S_gene + row.orf1ab + row.ORF3a + row.ORF6 + row.ORF7 + row.ORF8 + row.ORF10,
-                     axis=1)
-DF['sum_N'] =DF.apply(lambda
-                         row: row.E_gene_N + row.M_gene_N + row.N_gene_N + row.S_gene_N + row.orf1ab_N + row.ORF3a_N + row.ORF6_N + row.ORF7_N + row.ORF8_N + row.ORF10_N,
-                     axis=1)
+
 def chart(gene,l_n, plot_color = 'blue'): #function which makes logarythmic/normal plot based on a column from dataframe
 
   if 'whole' in gene:
