@@ -13,7 +13,7 @@ def filter_fasta_file(file):
         b = len(Temp_dict) #number of all genomes passed
         for header in Temp_dict:
                 #Quality Check
-            if  len(Temp_dict[header].rstrip())<29000 or len(Temp_dict[header].split('-')) >1 or len(Temp_dict[header].split('N')) >15:
+            if  len(Temp_dict[header].rstrip())<29000 or len(Temp_dict[header].split('-')) >1: # or len(Temp_dict[header].split('N')) >15:
                 bad_seq.append(header)
                 #Completeness Check
             elif len(Temp_dict[header].split('B'))>1 or len(Temp_dict[header].split('H'))>1 or len(Temp_dict[header].split('D'))>1 or len(Temp_dict[header].split('V'))>1 or len(Temp_dict[header].split('W'))>1 or len(Temp_dict[header].split('S'))>1 or len(Temp_dict[header].split('K'))>1 or len(Temp_dict[header].split('W'))>1 or len(Temp_dict[header].split('R'))>1 or len(Temp_dict[header].split('Y'))>1:
