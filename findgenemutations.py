@@ -57,11 +57,31 @@ def find_genes(genome, boundaries, tolerance, reference_genes, gene_names, ref_g
         if len(prefixes) > 0 and len(suffixes) > 0:
             minPrefix = min(prefixes, key=lambda x : Levenshtein.distance(seq[x:x+64], ref_prefix))
             minSuffix = min(suffixes, key=lambda x : Levenshtein.distance(seq[x:x+64], ref_suffix))
-            genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, Levenshtein.distance(ref, seq[minPrefix:minSuffix + 64])])
-            genes.append([name + '_translation', interval[0] + minPrefix,
-                          interval[0] + minSuffix + 64, Levenshtein.distance(translate_rna((transcribe(ref))),
-                          translate_rna(transcribe((seq[minPrefix:minSuffix + 64]))))])
-            genes.append([name + '_N', interval[0] + minPrefix, interval[0] + minSuffix + 64, len(re.findall('[^ACTG]', seq[minPrefix:minSuffix+64]))])
+            found_gene = seq[minPrefix:minSuffix + 64]
+            ref_protein = translate_rna(transcribe(ref))
+            found_protein = translate_rna(transcribe(found_gene))
+            genes.append([name, interval[0] + minPrefix, interval[0] + minSuffix + 64, Levenshtein.distance(ref, found_gene)])
+            genes.append([name + '_translation', 0,
+                          0, Levenshtein.distance(found_protein, ref_protein)])
+
+            genes.append([name + '_N', 0, 0, len(re.findall('[^ACTG]', found_gene))])
+            mutations = []
+            if len(found_gene) <= len(ref):
+                genetic_len = len(found_gene)
+                protein_len = len(found_protein)
+            else:
+                genetic_len = len(ref)
+                protein_len = len(ref_protein)
+            for i in range(genetic_len):
+                if found_gene[i] != ref[i]:
+                    mutations.append([i,ref[i],found_gene[i]])
+
+            protein_changes = []
+            for i in range(protein_len):
+                if found_protein[i] != ref_protein[i]:
+                    protein_changes.append([i,ref_protein[i],found_protein[i]])
+            genes.append([name + '_mutations', 0, 0, mutations])
+            genes.append([name + '_translation_changes', 0, 0, protein_changes])
 
     edit_distance = Levenshtein.distance(genome, ref_genome)
     return genes, edit_distance
