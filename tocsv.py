@@ -20,11 +20,35 @@ def distances_tocsv(file='distances.txt'):
                 dict[gene[0] + '_len'] = gene[2]-gene[1]
             list.append(dict)
         temp_cols = []
-        for i in ['E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10','S_gene_translation', 'ORF7_translation', 'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation', 'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation', 'whole_genome']:
+        for i in ['E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a',
+                  'ORF6', 'ORF7', 'ORF8', 'ORF10','S_gene_translation', 'ORF7_translation',
+                  'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation',
+                  'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation',
+                  'whole_genome', 'E_gene_mutations', 'M_gene_mutations', 'S_gene_mutations', 'N_gene_mutations',
+                  'orf1ab_mutations', 'ORF3a_mutations', 'ORF6_mutations', 'ORF7_mutations', 'ORF8_mutations', 'ORF10_mutations',
+                  'E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_translation_changes', 'N_gene_translation_changes',
+                  'orf1ab_translation_changes', 'ORF3a_translation_changes', 'ORF6_translation_changes', 'ORF7_translation_changes',
+                  'ORF8_translation_changes', 'ORF10_translation_changes']:
             temp_cols.append(i+'_start')
             temp_cols.append(i+'_end')
             temp_cols.append(i+'_len')
-        csv_columns = ['name','date','Accession ID', 'E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10','S_gene_translation', 'ORF7_translation', 'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation', 'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation', 'whole_genome','M_gene_N', 'N_gene_N_end', 'N_gene_N_len', 'orf1ab_N_end', 'ORF3a_N_end', 'ORF6_N_end', 'ORF10_N_end', 'orf1ab_N_start', 'ORF8_N_len', 'N_gene_N', 'M_gene_N_len', 'ORF10_N_len', 'ORF7_N_end', 'ORF7_N_len', 'ORF3a_N_start', 'M_gene_N_end', 'ORF3a_N', 'ORF7_N_start', 'ORF8_N', 'ORF7_N', 'M_gene_N_start', 'ORF8_N_start', 'S_gene_N_len', 'S_gene_N_start', 'ORF6_N_len', 'ORF8_N_end', 'ORF6_N_start', 'ORF10_N_start', 'E_gene_N_end', 'E_gene_N', 'ORF3a_N_len', 'S_gene_N_end', 'ORF10_N', 'N_gene_N_start', 'E_gene_N_start', 'orf1ab_N', 'orf1ab_N_len', 'E_gene_N_len', 'ORF6_N', 'S_gene_N']
+            #that code gives me cancer, sory for that guys ~ Grisha
+        csv_columns = ['name','date','Accession ID', 'E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab',
+                       'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10','S_gene_translation', 'ORF7_translation',
+                       'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation',
+                       'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation', 'whole_genome',
+                       'M_gene_N', 'N_gene_N_end', 'N_gene_N_len', 'orf1ab_N_end', 'ORF3a_N_end', 'ORF6_N_end', 'ORF10_N_end',
+                       'orf1ab_N_start', 'ORF8_N_len', 'N_gene_N', 'M_gene_N_len', 'ORF10_N_len', 'ORF7_N_end', 'ORF7_N_len',
+                       'ORF3a_N_start', 'M_gene_N_end', 'ORF3a_N', 'ORF7_N_start', 'ORF8_N', 'ORF7_N', 'M_gene_N_start',
+                       'ORF8_N_start', 'S_gene_N_len', 'S_gene_N_start', 'ORF6_N_len', 'ORF8_N_end', 'ORF6_N_start',
+                       'ORF10_N_start', 'E_gene_N_end', 'E_gene_N', 'ORF3a_N_len', 'S_gene_N_end', 'ORF10_N', 'N_gene_N_start',
+                       'E_gene_N_start', 'orf1ab_N', 'orf1ab_N_len', 'E_gene_N_len',
+                       'ORF6_N', 'S_gene_N','E_gene_mutations', 'M_gene_mutations',
+                       'S_gene_mutations', 'N_gene_mutations', 'orf1ab_mutations', 'ORF3a_mutations', 'ORF6_mutations',
+                       'ORF7_mutations', 'ORF8_mutations', 'ORF10_mutations', 'E_gene_translation_changes', 'M_gene_translation_changes',
+                       'S_gene_translation_changes', 'N_gene_translation_changes', 'orf1ab_translation_changes',
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               'ORF3a_translation_changes', 'ORF6_translation_changes', 'ORF7_translation_changes', 'ORF8_translation_changes', 'ORF10_translation_changes'
+]
 
         csv_columns+=temp_cols
         with open(output_file, 'w') as csvfile:
@@ -46,11 +70,11 @@ def distances_tocsv(file='distances.txt'):
         df.pop(y + '_start')
         df.pop(y + '_end')
         df.pop(y + '_len')
-
+    for x in ['E_gene_mutations', 'M_gene_mutations', 'S_gene_mutations', 'N_gene_mutations', 'orf1ab_mutations', 'ORF3a_mutations', 'ORF6_mutations', 'ORF7_mutations', 'ORF8_mutations', 'ORF10_mutations', 'E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_translation_changes', 'N_gene_translation_changes', 'orf1ab_translation_changes', 'ORF3a_translation_changes', 'ORF6_translation_changes', 'ORF7_translation_changes', 'ORF8_translation_changes', 'ORF10_translation_changes']:
+        df.pop(x)
     df['genomic_len'] = df['ORF10_end'] - df['orf1ab_start']
     #print(df.sort_values(by='S_gene', ascending=False))
-    df= df[df['genomic_len'] == 29409]
-    #print(df['genomic_len'])
+    #df= df[df['genomic_len'] == 29409]
     df.pop('whole_genome' + '_start')
     df.pop('whole_genome' + '_end')
     df.set_index('name')
