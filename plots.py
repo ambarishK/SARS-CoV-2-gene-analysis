@@ -10,21 +10,28 @@ Original file is located at
 
 
 import pandas as pd
-DF = pd.read_csv('Genome_Data-25_03_2020.csv')
-DF['Date'] = pd.to_datetime(DF['Date']) #converting data column to data type
+DF = pd.read_csv('Genome_Data-X.csv')
+DF['date'] = pd.to_datetime(DF['date']) #converting data column to data type
 #DF = DF.loc[DF['Nuc.Completeness'] == 'Complete'] #only using rows which have complete genome data
 
-DF.sort_values(by ='Date',ascending = False, inplace= True)
+DF.sort_values(by ='date',ascending = False, inplace= True)
 DF = DF.head((len(DF)-6)) #deleting outlier data
 
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 
+
 def chart(gene,l_n, plot_color = 'blue'): #function which makes logarythmic/normal plot based on a column from dataframe
-  list_of_datetimes = DF['Date'].tolist()
+
+  if 'whole' in gene:
+      temp_df = DF
+  elif '_translation' in gene:
+      temp_df = DF[DF[gene.split('_t')[0] + '_N'] == 0]
+  else:temp_df = DF[DF[gene+'_N'] == 0]
+  list_of_datetimes = temp_df['date'].tolist()
   dates = matplotlib.dates.date2num(list_of_datetimes)
-  values = DF[gene].tolist()
+  values = temp_df[gene].tolist()
   if l_n == 'l':
     values = np.log(values)
   x = plt.plot_date(dates, values, color=plot_color, alpha = 0.2)
@@ -49,7 +56,7 @@ for gene in Genes:
     chart(gene + '_translation', 'e', 'red')
     plt.savefig('plots/'+ gene + '.png')
     plt.show()
-chart('whole_genome', 'e')
+chart('sum', 'e')
 plt.savefig('plots/whole_genome' + '.png')
-
+plt.show()
 
