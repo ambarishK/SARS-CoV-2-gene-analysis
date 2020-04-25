@@ -21,6 +21,13 @@ str = 'S_gene_translation_changes'
 #     if '_mutations' in  cols or '_changes' in cols:
 #         for sth in DF[cols]:
 #             sth = ast.literal_eval(sth)
+def change_format(list):
+    max_val = max(list)
+    value_counter = []
+    for i in range(max_val + 10):
+        value_counter.append(list.count(i))
+    return value_counter
+
 plt.style.use('ggplot')
 for cols in DF:
     hist_data = []
@@ -30,17 +37,7 @@ for cols in DF:
             if len(location) !=0:
                 for list in location:
                      hist_data.append(list[0])
-        plt.hist(hist_data, bins =max(hist_data)+10)
-        plt.title(cols)
-        plt.show()
+        new_list = change_format(hist_data)
+        #now u have list format which u wanted
         break
         plt.savefig('plots/distributions/' + cols + '.png')
-
-def change_format(list):
-    max_val = max(list)
-    value_counter = []
-    for i in range(max_val+10):
-        print(i)
-        print(list.count(i))
-        value_counter.append(list.count(i))
-    print(value_counter)
