@@ -36,4 +36,11 @@ for cols in DF:
         break
         plt.savefig('plots/distributions/' + cols + '.png')
 
-
+def change_format(list):
+    max_val = max(list)
+    value_counter = []
+    for i in range(max_val+10):
+        print(i)
+        print(list.count(i))
+        value_counter.append(list.count(i))
+    print(value_counter)
