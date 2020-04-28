@@ -13,49 +13,81 @@ counter = 0
 
 import sys
 sys.setrecursionlimit(150000)
-def FindNeighboors(list, node):
+def FindNeighboors(list, node, counter):
     for x in net.adj[node]:
         if x.name:
             list.append(x.name)
         else:
-            FindNeighboors(list,x)
-    return list, node
+            if counter<100:
+                print(counter)
+                counter += 1
+                FindNeighboors(list,x,counter)
+            else:break
+    return list, node,counter #that wont work
 
+def FindNeighboors2(list, node, was_already):
+    for x in net.adj[node]:
+        if x.name:
+            if not x.name in was_already:
+                list.append(x.name.split('_2020')[0].split('2020_')[-1])
+                was_already.append(x.name)
+        else:
+            for y in net.adj[x]:
+                if y.name:
+                    if not y.name in was_already:
+                        list.append(y.name.split('_2020')[0].split('2020_')[-1])
+                        was_already.append(y.name)
+                else:
+                    for z in net.adj[y]:
+                        if z.name:
+                            if not z.name in was_already:
+                                list.append(z.name.split('_2020')[0].split('2020_')[-1])
+                                was_already.append(z.name)
+
+
+
+    return list, node,was_already
 dict = {}
 key_list = []
 val_list = []
 
-
+was_already = []
 for x in net.nodes:
-    list = []
-    FindNeighboors(list,x)
-    break
-    if  x.name:
 
+    if x.name:
         list = []
-
-        #retarded version
-
-
-        
-        # for y in net.adj[x]:
-        #     for z in net.adj[y]:
-        #         if z.name  and z.name != x.name:
-        #             counter += 1
-        #             list.append((z.name.split('_2020')[0].split('2020_')[-1]))
-        #             val_list.append(z.name)
-        #
-        #         else:
-        #             for w in net.adj[z]:
-        #                 if w.name and w.name !=x.name:
-        #                     list.append((w.name.split('_2020')[0].split('2020_')[-1]))
-        #                     val_list.append(w.name)
-
-
-
-
+        was_already.append(x.name)
+        FindNeighboors2(list,x,was_already)
         dict[x.name.split('_2020')[0].split('2020_')[-1]] = list
-        key_list.append(x.name)
 zeros = 0
+testing=[]
+for key in dict:
+    for x in dict[key]:
+        testing.append(x)
 
-print(dict)
+
+# from ete3 import Tree
+#
+# t = Tree('data/v.nh')
+#
+# relatives = {}
+#
+#
+# def find_relatives(depth=2):
+#     relatives = {}
+#     for node in t.traverse("postorder"):
+#         if node.name:
+#             sub_rel = {}
+#             u = node
+#             for i in range(depth):
+#                 u = u.up
+#                 if u != None:
+#                     sub_rel[i] = []
+#                     for leaf in u:
+#                         sub_rel[i].append(leaf.name)
+#
+#             relatives[node.name] = sub_rel
+#     return relatives
+#
+#
+# relatives = find_relatives(depth=2)
