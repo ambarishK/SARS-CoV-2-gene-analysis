@@ -131,12 +131,12 @@ def colorbar1(gene):
     fig.colorbar(im, ax=ax)
     # plt.yticks([])
     plt.xticks([])
-    plt.suptitle('Mutation density in ' + label +  ' of SARS-CoV-2 virus',y=0.95)
+    plt.suptitle('Mutation density in ' + label +  ' of SARS-CoV-2 virus', y=0.95)
     plt.savefig('./plots/density/mutation_density_' + label + '.png', dpi=600)
-    # plt.show()
+    plt.show()
     # print(label)
 
-colorbar1('orf1ab')
+colorbar1('N_gene')
 
 # for i in mut:
 #     colorbar1(i)
