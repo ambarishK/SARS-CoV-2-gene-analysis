@@ -2,9 +2,8 @@ import pandas as pd
 
 
 df = pd.read_csv('Genome_data-X.csv')
-dfi = df['Accession ID']
 
-accession_list = dfi.to_list()
+accession_list = df['Accession ID'].to_list()
 #for f in accession_list:
    #print(f)
 
@@ -14,7 +13,7 @@ df = df.set_index('Accession ID')
 
 output = []
 with open('Cleaned_up_genes.fasta', 'r') as infile, open('filtered.fasta', 'w') as outfile:
-    bad = True
+    # bad = True
     sequence = ''
     aid = ''
     temp_dict = {}
@@ -52,6 +51,4 @@ with open("for_tree.fasta", "r") as f:
     counter = 0
     for line in f:
         counter+=1
-
-
 

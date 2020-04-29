@@ -17,7 +17,7 @@ def date_histogram(file):
 import datetime
 date_histogram('Genome_Data-X.csv')
 def return_ratio(month):
-    df = pd.read_csv('Genome_Data-X2.csv')
+    df = pd.read_csv('Genome_Data-X.csv')
     df['date'] = df['date'].astype('datetime64')
     # df = df.sort_values(by='date', ascending=False)
     # a = str(df['date'].head(1)).split('-')
@@ -74,7 +74,7 @@ def return_ratio(month):
 b=[]
 length=[]
 from sklearn.linear_model import LinearRegression
-for i in range (1,15):
+for i in range (1,17):
     c,d = return_ratio(i)
     b.append(c)
     length.append(d)
@@ -95,8 +95,12 @@ Y_pred = linear_regressor.predict(X)  # make predictions
 
 
 
-plt.scatter(X, b)
-plt.plot(X, Y_pred, color='red')
+plt.scatter(X, b,color='#67a9cf',alpha=1)
+plt.plot(X, Y_pred, color='#ef8a62',alpha=1)
+plt.suptitle('Average number of mutations in given week of 2020',y=0.95)
+plt.xlabel('Week number')
+plt.ylabel('Av. Number of mutations')
+plt.savefig('marzeniegrzegorza.png')
 plt.show()
 
 # print(length)
