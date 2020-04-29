@@ -38,14 +38,14 @@ def distances_tocsv(file='extra_comparisons_results.txt', output_file='Test-new-
             writer.writeheader()
             for data in data_list:
                 writer.writerow(data)
-    df = pd.read_csv(output_file)
+    # df = pd.read_csv(output_file)
 
 
 # distances_tocsv()
 # distances_tocsv('extra_comparisons_results.txt', 'extra_comparisons_results1.csv')
 
 
-def merge_csv(file1, file2):
+def merge_csv(file1, file2, output_file):
     df1 = pd.read_csv(file1, index_col='header')  # that one should be classic csv with N's
     df2 = pd.read_csv(file2)  # 2 jest mniejsza
     df2.rename(columns={'compared': 'header'}, inplace=True)
@@ -56,11 +56,11 @@ def merge_csv(file1, file2):
     # df1.set_index('header')
     # df2.set_index('compared')
     common = pd.merge(df1, df2, on='header', how='inner')
-    common.to_csv('test.csv')
-    print(common.head(5))
+    common.to_csv(output_file)
+    # print(common.head(5))
 
 
-merge_csv('genome_data33.csv', 'extra_comparisons_results1.csv')
+# merge_csv('genome_data33.csv', 'extra_comparisons_results1.csv', 'test.csv')
 
 # for gene in ['E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10']:
 #     df = df[df[gene+'_len'] == Ref_len[gene]+1]
