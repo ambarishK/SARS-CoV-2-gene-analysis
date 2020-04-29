@@ -40,6 +40,7 @@ def distances_tocsv(file='distances.txt'):
         #           'ORF8_translation_changes', 'ORF10_translation_changes']:
 
             # that code gives me cancer
+
         csv_columns = ['name', 'date', 'Accession ID', 'E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab',
                        'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10', 'S_gene_translation', 'ORF7_translation',
                        'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation',

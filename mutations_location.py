@@ -71,10 +71,10 @@ def llread(filename='mutation_density.pg'):
         return(result)
 
 def colorbar():
-    i=0
-    data=llread()
-    fig, axs =plt.subplots(10,sharey=True,sharex=False)
-    a=[]
+    i = 0
+    data = llread()
+    fig, axs = plt.subplots(10,sharey=True,sharex=False)
+    # a = []
     for list in data:
         label = mut[i][:-10]
         arr = np.array(list)
@@ -96,21 +96,30 @@ def colorbar():
     # plt.yticks([])
     # plt.xticks([])
     plt.suptitle('Mutation density in genes of SARS-CoV-2 virus',y=0.95)
-    plt.savefig('mutation_density.png')
+    plt.savefig('./plots/density/mutation_density.png')
     plt.show()
 
-def colorbar_s():
+# colorbar()
+
+
+def colorbar1(gene):
     i=0
+    for gene1 in mut:
+        if gene1.startswith(gene):
+            break
+        i+=1
     data=llread()
     fig, ax = plt.subplots()
-    # label = mut[i][:-10]
-    arr = np.array(data[2])
+    label = mut[i][:-10]
+    arr = np.array(data[i])
+    # print(len(arr))
+    print(max(arr))
     arr = np.stack((arr,arr),axis=0) #thicc1
     # arr = np.concatenate((arr, arr), axis=0)
     # arr = np.concatenate((arr, arr), axis=0)
     # arr = np.concatenate((arr, arr), axis=0) #thicc4
     # ax.subplot(20,1,t)
-    im = ax.imshow(arr,aspect=200,cmap='plasma')
+    im = ax.imshow(arr,extent=(0,1,0,0.1),cmap='plasma')
     # ax.set_ylabel(label, rotation=0, labelpad=25)
     # axs[i].xaxis.labelpad=100
     # axs[i].set_yticklabels([])
@@ -118,15 +127,22 @@ def colorbar_s():
     # axs[i].axis('off')
     # ax.axes.get_xaxis().set_ticks([])
     ax.axes.get_yaxis().set_ticks([])
-    ax.set_xlabel('S gene length')
+    ax.set_xlabel('Length of ' + label, labelpad=10)
     fig.colorbar(im, ax=ax)
     # plt.yticks([])
-    # plt.xticks([])
-    plt.suptitle('Mutation density in S gene of SARS-CoV-2 virus',y=0.95)
-    plt.savefig('mutation_density_s.png')
-    plt.show()
+    plt.xticks([])
+    plt.suptitle('Mutation density in ' + label +  ' of SARS-CoV-2 virus',y=0.95)
+    plt.savefig('./plots/density/mutation_density_' + label + '.png', dpi=600)
+    # plt.show()
+    # print(label)
 
-# colorbar_s()
+colorbar1('orf1ab')
+
+# for i in mut:
+#     colorbar1(i)
+
+
+
 # for cols in DF:
 #     hist_data = []
 #     if '_mutations' in cols or '_changes' in cols:
