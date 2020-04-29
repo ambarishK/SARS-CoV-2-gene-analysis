@@ -3,7 +3,6 @@ import ast
 import csv
 import itertools
 
-
 def distances_tocsv(file='distances.txt'):
     output_file = 'Genome_Data-X.csv'
     with open(file, 'r') as file:
@@ -14,6 +13,7 @@ def distances_tocsv(file='distances.txt'):
             dict = {'Accession ID': header.rstrip().split('|')[1]}
             dict['date'] = a
             dict['name'] = header.replace(' ', '').rstrip().split('|')[0][:-1].replace('>', '')
+
             for gene in List:
                 dict[gene[0]] = gene[3]
                 dict[gene[0] + '_start'] = gene[1]
@@ -22,21 +22,24 @@ def distances_tocsv(file='distances.txt'):
             list.append(dict)
         temp_cols = []
         for i in ['E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a',
-                  'ORF6', 'ORF7', 'ORF8', 'ORF10', 'S_gene_translation', 'ORF7_translation',
-                  'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation',
-                  'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation',
-                  'whole_genome', 'E_gene_mutations', 'M_gene_mutations', 'S_gene_mutations', 'N_gene_mutations',
-                  'orf1ab_mutations', 'ORF3a_mutations', 'ORF6_mutations', 'ORF7_mutations', 'ORF8_mutations',
-                  'ORF10_mutations',
-                  'E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_translation_changes',
-                  'N_gene_translation_changes',
-                  'orf1ab_translation_changes', 'ORF3a_translation_changes', 'ORF6_translation_changes',
-                  'ORF7_translation_changes',
-                  'ORF8_translation_changes', 'ORF10_translation_changes']:
+                  'ORF6', 'ORF7', 'ORF8', 'ORF10']:
             temp_cols.append(i + '_start')
             temp_cols.append(i + '_end')
             temp_cols.append(i + '_len')
-            # that code gives me cancer, sory
+        # for i in ['E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a',
+        #           'ORF6', 'ORF7', 'ORF8', 'ORF10', 'S_gene_translation', 'ORF7_translation',
+        #           'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation',
+        #           'ORF8_translation', 'N_gene_translation', 'ORF10_translation', 'E_gene_translation',
+        #           'whole_genome', 'E_gene_mutations', 'M_gene_mutations', 'S_gene_mutations', 'N_gene_mutations',
+        #           'orf1ab_mutations', 'ORF3a_mutations', 'ORF6_mutations', 'ORF7_mutations', 'ORF8_mutations',
+        #           'ORF10_mutations',
+        #           'E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_translation_changes',
+        #           'N_gene_translation_changes',
+        #           'orf1ab_translation_changes', 'ORF3a_translation_changes', 'ORF6_translation_changes',
+        #           'ORF7_translation_changes',
+        #           'ORF8_translation_changes', 'ORF10_translation_changes']:
+
+            # that code gives me cancer
         csv_columns = ['name', 'date', 'Accession ID', 'E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab',
                        'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10', 'S_gene_translation', 'ORF7_translation',
                        'ORF3a_translation', 'orf1ab_translation', 'ORF6_translation', 'M_gene_translation',
