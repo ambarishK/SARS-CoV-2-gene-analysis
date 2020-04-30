@@ -455,7 +455,7 @@ size_t Gene::invalid_nucleotides() const {
 	size_t n = 0;
 	for(size_t i = begin; i < end; ++i) {
 		char c = genome.data[i];
-		if(c != 'A' || c != 'T' || c != 'G') {
+		if(c != 'A' && c != 'T' && c != 'G') {
 			++n;
 		}
 	}
