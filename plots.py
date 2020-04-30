@@ -10,35 +10,42 @@ Original file is located at
 
 
 import pandas as pd
-DF = pd.read_csv('Genome_Data-X.csv')
-DF['date'] = pd.to_datetime(DF['date']) #converting data column to data type
+DF = pd.read_csv('testnew.csv')
+#converting data column to data type
 #DF = DF.loc[DF['Nuc.Completeness'] == 'Complete'] #only using rows which have complete genome data
 
 DF.sort_values(by ='date',ascending = False, inplace= True)
 DF = DF.head((len(DF)-6)) #deleting outlier data
+print(DF.tail(6)['date'])
+#DF['date'] = pd.to_datetime(DF['date'])
 
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 
-
 def chart(gene,l_n, plot_color = 'blue'): #function which makes logarythmic/normal plot based on a column from dataframe
+
 
   if 'whole' in gene:
       temp_df = DF
-  elif '_translation' in gene:
-      temp_df = DF[DF[gene.split('_t')[0] + '_N'] == 0]
-  else:temp_df = DF[DF[gene+'_N'] == 0]
+  elif '_protein' in gene:
+      temp_df = DF[DF[gene.split('_p')[0] + '_invalid_nucleotides'] == 0]
+  else:temp_df = DF[DF[gene+'_invalid_nucleotides'] == 0]
   list_of_datetimes = temp_df['date'].tolist()
   dates = matplotlib.dates.date2num(list_of_datetimes)
-  values = temp_df[gene].tolist()
+  values = temp_df[gene+'_distance'].tolist()
   if l_n == 'l':
     values = np.log(values)
-  x = plt.plot_date(dates, values, color=plot_color, alpha = 0.2)
+
+
+  print(values)
+  x = plt.plot_date(dates, values, color=plot_color)
 
   plt.title( gene +' of SARS-CoV-2', loc='left',fontsize = 10)
   plt.ylabel('Mutations', fontsize = 10)
   plt.xlabel('Time')
+  plt.xlim('2019-12-30', '2020-04-30')
+
   plt.xticks(fontsize = 10, rotation=35)
   plt.tight_layout()
   #plt.savefig(gene + '.png')
@@ -53,10 +60,7 @@ for gene in Genes:
     plt.subplot(1,2,1)
     chart(gene, 'e')
     plt.subplot(1, 2, 2)
-    chart(gene + '_translation', 'e', 'red')
+    chart(gene + '_protein', 'e', 'red')
     plt.savefig('plots/'+ gene + '.png')
     plt.show()
-chart('sum', 'e')
-plt.savefig('plots/whole_genome' + '.png')
-plt.show()
 
