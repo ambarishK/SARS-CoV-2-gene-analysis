@@ -1,41 +1,38 @@
-def filter_fasta_file(file):
-    output = []
-    a=0
-    with open(file, 'r') as fasta_file:
-        Temp_dict = {}
-        for line in fasta_file:
-            if line.startswith('>'):
-                temp_header = line
-                Temp_dict[temp_header] = ''
-            else:
-                Temp_dict[temp_header] += line.upper().rstrip()
-        bad_seq = []
-        b = len(Temp_dict) #number of all genomes passed
-        for header in Temp_dict:
-                #Quality Check
-            if  len(Temp_dict[header].rstrip())<29000 or len(Temp_dict[header].split('-')) >1: # or len(Temp_dict[header].split('N')) >15:
-                bad_seq.append(header)
-                #Completeness Check
-            elif len(Temp_dict[header].split('B'))>1 or len(Temp_dict[header].split('H'))>1 or len(Temp_dict[header].split('D'))>1 or len(Temp_dict[header].split('V'))>1 or len(Temp_dict[header].split('W'))>1 or len(Temp_dict[header].split('S'))>1 or len(Temp_dict[header].split('K'))>1 or len(Temp_dict[header].split('W'))>1 or len(Temp_dict[header].split('R'))>1 or len(Temp_dict[header].split('Y'))>1:
-                bad_seq.append(header)
-        for bad in bad_seq:
-            Temp_dict.pop(bad)
+import argparse
 
-        for header in Temp_dict:
-            genome = Temp_dict[header].rstrip()
-            # head = header.rstrip().split('|')
-            # acession_id = header.rstrip().split('|')[1]
-            # temp_df = genomes_published.loc[genomes_published['Accession ID'] == acession_id]
-            # temp_df = temp_df.loc[temp_df['Nuc.Completeness'] == 'Complete']
-            # temp_df = temp_df.loc[temp_df['Sequence Quality'] != 'Low']
-            # if(len(temp_df) != 0 ):
-            a+=1
-            output.append(header.replace(' ','').rstrip())
-            output.append(genome.rstrip())
-    print('The total number of valid genomes is {}, {}% of all genomes passed'.format(a, round(a/b*100)))
-    with open("Cleaned_up_genes.fasta", "w") as f:
-        for line in output:
-            f.write("%s\n" % line)
+
+def filter_fasta_file(input_filename: str, output_filename: str) -> None:
+    MIN_GENOME_LEN = 29000
+
+    genomes = {}
+    with open(input_filename, 'r') as fasta_file:
+        for line in fasta_file:
+            line = line.rstrip()
+            if len(line) == 0:
+                continue
+            if line.startswith('>'):
+                header = line
+                genomes[header] = ''
+            else:
+                genomes[header] += line.upper()
+    bad_seq = []
+    all_genomes = len(genomes)
+    for header, genome in genomes.items():
+        if len(genome) < MIN_GENOME_LEN or any((g in genome) for g in ['-', 'B', 'H', 'D', 'V', 'W', 'S', 'K', 'R', 'Y']):
+            bad_seq.append(header)
+    for bad in bad_seq:
+        del genomes[bad]
+    valid_genomes = 0
+    with open(output_filename, "w") as f:
+        for header, genome in genomes.items():
+            valid_genomes += 1
+            print(header.replace(' ', '').rstrip(), file=f)
+            print(genome, file=f)
+    print('The total number of valid genomes is {}, {}% of all genomes passed'.format(valid_genomes, round(valid_genomes / all_genomes * 100)))
 
 if __name__ == "__main__":
-    filter_fasta_file('gisaid_cov2020_sequences.fasta')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", type=str, help="input file", default="gisaid_hcov-19_2020_04_29_22.fasta")
+    parser.add_argument("-o", type=str, help="output file", default="Cleaned_up_genes.fasta")
+    args = parser.parse_args()
+    filter_fasta_file(args.i, args.o)
