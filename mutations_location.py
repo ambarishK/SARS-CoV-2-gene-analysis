@@ -3,6 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
+from scipy import stats
+import statistics
+
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 x = '[ "A","B","C" , " D"]'
 x = ast.literal_eval(x)
@@ -12,6 +15,9 @@ DF['date'] = pd.to_datetime(DF['date']) #converting data column to data type
 
 DF.sort_values(by ='date',ascending = False, inplace= True)
 DF = DF.head((len(DF)-6)) #deleting outlier data
+# print(len(DF))
+DF = DF[DF['N_gene']==0]
+# print(len(DF))
 string = 'S_gene_translation_changes'
 # DF['orf1ab_mutations'] = DF.apply(lambda
 #                                row: (ast.literal_eval(row.orf1ab_mutations)),
@@ -34,6 +40,7 @@ mut = ['E_gene_mutations', 'M_gene_mutations', 'S_gene_mutations', 'N_gene_mutat
 trans = ['E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_translation_changes', 'N_gene_translation_changes',
          'orf1ab_translation_changes', 'ORF3a_translation_changes', 'ORF6_translation_changes', 'ORF7_translation_changes', 'ORF8_translation_changes',
          'ORF10_translation_changes']
+
 def get_lists_colorbar():
     lists = []
     for cols in mut:
@@ -54,6 +61,8 @@ def llwrite(list,filename='mutation_density.pg'):
             for int in _list:
                 f.write(str(int) + '\n')
 
+llwrite(get_lists_colorbar(),'mutation_density2.pg')
+
 def llread(filename='mutation_density.pg'):
     with open(filename, 'r') as f:
         result=[]
@@ -70,12 +79,29 @@ def llread(filename='mutation_density.pg'):
         result.append(a)
         return(result)
 
+
+def del_zscore(list,zscore=20):
+    z = abs(stats.zscore(list))
+    print('Previous max zscore was {}'.format(max(z)))
+    listold = list
+    list = []
+    i = 0
+    for item in z:
+        if item > zscore:
+            pass
+        else:
+            list.append(listold[i])
+        i += 1
+    return list
+
+
 def colorbar():
     i = 0
     data = llread()
     fig, axs = plt.subplots(10,sharey=True,sharex=False)
     # a = []
     for list in data:
+        list = del_zscore(list,10)
         label = mut[i][:-10]
         arr = np.array(list)
         arr = np.stack((arr,arr),axis=0) #thicc1
@@ -84,7 +110,7 @@ def colorbar():
         # arr = np.concatenate((arr, arr), axis=0) #thicc4
         # ax.subplot(20,1,t)
         im = axs[i].imshow(arr,aspect='auto',cmap='plasma')
-        axs[i].set_ylabel(label, rotation=0, labelpad=25)
+        axs[i].set_ylabel(label, rotation=0, labelpad=25, y=0.3)
         # axs[i].xaxis.labelpad=100
         # axs[i].set_yticklabels([])
         # plt.ylabel(cols[:-10])
@@ -92,11 +118,11 @@ def colorbar():
         axs[i].axes.get_xaxis().set_ticks([])
         axs[i].axes.get_yaxis().set_ticks([])
         i+=1
-    fig.colorbar(im, ax=axs)
+    # fig.colorbar(im, ax=axs)
     # plt.yticks([])
     # plt.xticks([])
     plt.suptitle('Mutation density in genes of SARS-CoV-2 virus',y=0.95)
-    plt.savefig('./plots/density/mutation_density.png')
+    plt.savefig('./plots/density/mutation_density2.png',dpi=600)
     plt.show()
 
 # colorbar()
@@ -111,32 +137,25 @@ def colorbar1(gene):
     data=llread()
     fig, ax = plt.subplots()
     label = mut[i][:-10]
-    arr = np.array(data[i])
+    arr = np.array(del_zscore(data[i],20))
     # print(len(arr))
-    print(max(arr))
+    # print((arr))
+    print('Mean number of mutations is {}'.format(round(statistics.mean(map(float, arr))),2))
+    # indexNames = dfObj[(dfObj['Age'] >= 30) & (dfObj['Country'] == 'India')].index
     arr = np.stack((arr,arr),axis=0) #thicc1
-    # arr = np.concatenate((arr, arr), axis=0)
-    # arr = np.concatenate((arr, arr), axis=0)
-    # arr = np.concatenate((arr, arr), axis=0) #thicc4
-    # ax.subplot(20,1,t)
     im = ax.imshow(arr,extent=(0,1,0,0.1),cmap='plasma')
-    # ax.set_ylabel(label, rotation=0, labelpad=25)
-    # axs[i].xaxis.labelpad=100
-    # axs[i].set_yticklabels([])
-    # plt.ylabel(cols[:-10])
-    # axs[i].axis('off')
-    # ax.axes.get_xaxis().set_ticks([])
     ax.axes.get_yaxis().set_ticks([])
     ax.set_xlabel('Length of ' + label, labelpad=10)
     fig.colorbar(im, ax=ax)
-    # plt.yticks([])
+    plt.yticks([])
     plt.xticks([])
     plt.suptitle('Mutation density in ' + label +  ' of SARS-CoV-2 virus', y=0.95)
-    plt.savefig('./plots/density/mutation_density_' + label + '.png', dpi=600)
+    # plt.savefig('./plots/density/mutation_density_' + label + '.png', dpi=600)
     plt.show()
     # print(label)
 
-colorbar1('N_gene')
+# colorbar1('orf1ab')
+
 
 # for i in mut:
 #     colorbar1(i)
