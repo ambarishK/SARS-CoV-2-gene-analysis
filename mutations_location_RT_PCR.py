@@ -3,10 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
+
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 x = '[ "A","B","C" , " D"]'
 x = ast.literal_eval(x)
-DF = pd.read_csv('Genome_Data-X.csv')
+DF = pd.read_csv('Genome_Data-X2.csv')
 DF['date'] = pd.to_datetime(DF['date']) #converting data column to data type
 #DF = DF.loc[DF['Nuc.Completeness'] == 'Complete'] #only using rows which have complete genome data
 
@@ -24,6 +25,7 @@ for prime in primers:
 #     if '_mutations' in  cols or '_changes' in cols:
 #         for sth in DF[cols]:
 #             sth = ast.literal_eval(sth)
+
 def change_format(list):
     if(len(list) != 0):
         max_val = max(list)
@@ -38,6 +40,7 @@ mut = [i +'_mutations' for i in primers]
 trans = ['E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_translation_changes', 'N_gene_translation_changes',
          'orf1ab_translation_changes', 'ORF3a_translation_changes', 'ORF6_translation_changes', 'ORF7_translation_changes', 'ORF8_translation_changes',
          'ORF10_translation_changes']
+
 def get_lists_colorbar():
     lists = []
     for cols in mut:
@@ -46,8 +49,10 @@ def get_lists_colorbar():
             location = ast.literal_eval(location)
             if len(location) != 0:
                 #IF name == USA2 etc, the same for other countries
-                if location[0][1]=='G' and location[0][1] == 'A':
+                if location[0][1]=='G' and location[0][2] == 'A':
                     location.remove(location[0])
+                # if location[1][1] == 'A' and location[1][2] == 'G':
+                #     location.remove(location[1])
                 for list in location:
                     if list[1] =='Y' and (list[2]=='C' or list[2]=='T'):
                         print(list[2])
@@ -60,13 +65,17 @@ def get_lists_colorbar():
         lists.append(new_list)
     return lists
 
+# get_lists_colorbar()
+
 def llwrite(list,filename='mutation_density.pg'):
     with open(filename, 'w') as f:
         for _list in list:
             f.write('#' + '\n')
             for int in _list:
                 f.write(str(int) + '\n')
+
 llwrite(get_lists_colorbar())
+
 def llread(filename='mutation_density.pg'):
     with open(filename, 'r') as f:
         result=[]
@@ -147,7 +156,7 @@ def colorbar1(gene):
     plt.xticks([])
     plt.suptitle('Mutation density in ' + label +  ' of SARS-CoV-2 virus', y=0.95)
     plt.savefig('./plots/density/mutation_density_' + label + '.png', dpi=300)
-    plt.show()
+    # plt.show()
     # print(label)
 
 for prime in primers:
