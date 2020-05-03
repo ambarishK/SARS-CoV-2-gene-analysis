@@ -1,14 +1,14 @@
 from Bio import Phylo
 
-import networkx, pylab
+import networkx, pylab, subprocess, re
 
-tree = Phylo.read('test.nh', 'newick')
+tree = Phylo.read('tree2.nwk', 'newick')
 
 net = Phylo.to_networkx(tree)
 
 list = networkx.generate_adjlist(net)
 #print(net.clade_relations)
-print(list)
+#print(list)
 counter = 0
 
 import sys
@@ -91,3 +91,36 @@ for key in dict:
 #
 #
 # relatives = find_relatives(depth=2)
+
+childless = []
+for key in dict:
+    if len(dict[key]) == 0:
+        childless.append(key)
+
+for key in childless:
+    del dict[key]
+
+names = subprocess.check_output("cat Cleaned_up_genes.fasta | grep EPI_ISL_", shell=True).split()
+
+names = [name.decode("UTF-8") for name in names]
+
+def get_number(header):
+    return re.search("EPI_ISL_\\d+", header).group()
+
+names = {get_number(name): name for name in names}
+
+dict = {names[get_number(key)] : [names[get_number(el)] for el in dict[key]] for key in dict}
+
+count = 0
+for key in dict:
+    count += len(dict[key])
+
+file = open("extra_comparisons.txt", "w")
+file.write(str(count) + "\n")
+for parent in dict:
+    for child in dict[parent]:
+        file.write(parent)
+        file.write("\n")
+        file.write(child)
+        file.write("\n")
+file.close()
