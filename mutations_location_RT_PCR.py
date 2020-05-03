@@ -14,9 +14,17 @@ DF['date'] = pd.to_datetime(DF['date']) #converting data column to data type
 DF.sort_values(by ='date',ascending = False, inplace= True)
 DF = DF.head((len(DF)-6)) #deleting outlier data
 primers = ['N_China_F', 'N_China_R', 'N_China_P', 'N_HongKong_F', 'N_HongKong_R', 'N_HongKong_P', 'N_Japan_F', 'N_Japan_R', 'N_Japan_P', 'N_Thailand_F', 'N_Thailand_R', 'N_USA1_F', 'N_USA1_R', 'N_USA2_F', 'N_USA2_R', 'N_USA2_P', 'N_USA3_F', 'N_USA3_R', 'N_USA3_P', 'RdRp_China_F', 'RdRp_China_R', 'RdRp_China_P', 'RdRp_Germany_F', 'RdRp_Germany_R', 'RdRp_Germany_P', 'RdRp_HongKong_F', 'RdRp_HongKong_R', 'RdRp_HongKong_P']
+
 for prime in primers:
     DF= DF[DF[prime+'_N']==0]
 
+def filter_country(country = 'Poland', dataframe=DF):
+    dataframe['country'] = dataframe['name'].apply(lambda x: str(x).split('/')[-3])
+    dataframe2 = dataframe[dataframe['country'] == country]
+    print('Number of genomes in {} is {}, {}% of whole'.format(country, len(dataframe2), round(len(dataframe2)/len(dataframe),3)))
+    return dataframe2
+
+filter_country()
 # DF['orf1ab_mutations'] = DF.apply(lambda
 #                                row: (ast.literal_eval(row.orf1ab_mutations)),
 #                            axis=1)
@@ -107,7 +115,7 @@ def llwrite(list,filename='mutation_density.pg'):
             for int in _list:
                 f.write(str(int) + '\n')
 
-llwrite(get_lists_colorbar())
+# llwrite(get_lists_colorbar())
 
 def llread(filename='mutation_density.pg'):
     with open(filename, 'r') as f:
@@ -193,8 +201,8 @@ def colorbar1(gene):
     # plt.show()
     # print(label)
 
-for prime in primers:
-    colorbar1(prime)
+# for prime in primers:
+#     colorbar1(prime)
 
 # for i in mut:
 #     colorbar1(i)
