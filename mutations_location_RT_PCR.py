@@ -41,29 +41,62 @@ trans = ['E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_tra
          'orf1ab_translation_changes', 'ORF3a_translation_changes', 'ORF6_translation_changes', 'ORF7_translation_changes', 'ORF8_translation_changes',
          'ORF10_translation_changes']
 
+# def get_lists_colorbar():
+#     lists = []
+#     for cols in mut:
+#         hist_data=[]
+#         for location in DF[cols]:
+#             location = ast.literal_eval(location)
+#             if len(location) != 0:
+#                 #IF name == USA2 etc, the same for other countries
+#                 if location[0][1]=='G' and location[0][2] == 'A':
+#                     location.remove(location[0])
+#                 # if location[1][1] == 'A' and location[1][2] == 'G':
+#                 #     location.remove(location[1])
+#                 for list in location:
+#                     if list[1] =='Y' and (list[2]=='C' or list[2]=='T'):
+#                         print(list[2])
+#                     elif list[1]=='R' and(list[2]=='A' or list[2]=='G'):
+#                         print(list[2])
+#
+#                     else:
+#                         hist_data.append(list[0])
+#         new_list = change_format(hist_data)
+#         lists.append(new_list)
+#     return lists
+
+
 def get_lists_colorbar():
     lists = []
     for cols in mut:
-        hist_data=[]
+        hist_data = []
         for location in DF[cols]:
             location = ast.literal_eval(location)
+
             if len(location) != 0:
-                #IF name == USA2 etc, the same for other countries
-                if location[0][1]=='G' and location[0][2] == 'A':
-                    location.remove(location[0])
-                # if location[1][1] == 'A' and location[1][2] == 'G':
-                #     location.remove(location[1])
+                # IF name == USA2 etc, the same for other countries
+
                 for list in location:
-                    if list[1] =='Y' and (list[2]=='C' or list[2]=='T'):
+
+                    if 'N_HongKong_P' in cols:
+                        if list[0] == 9 and location[0][2] == 'C' and location[0][1] == 'T':
+                            location.remove(list)
+
+                        print(location)
+
+                    if list[1] == 'Y' and (list[2] == 'C' or list[2] == 'T'):
                         print(list[2])
-                    elif list[1]=='R' and(list[2]=='A' or list[2]=='G'):
+                    elif list[1] == 'R' and (list[2] == 'A' or list[2] == 'G'):
                         print(list[2])
 
                     else:
                         hist_data.append(list[0])
+
         new_list = change_format(hist_data)
         lists.append(new_list)
     return lists
+
+
 
 # get_lists_colorbar()
 
@@ -91,6 +124,7 @@ def llread(filename='mutation_density.pg'):
                 a.append(int(line[:-1]))
         result.append(a)
         return(result)
+
 
 def colorbar():
     i = 0
