@@ -164,34 +164,3 @@ for prime in primers:
 
 # for i in mut:
 #     colorbar1(i)
-
-
-
-# for cols in DF:
-#     hist_data = []
-#     if '_mutations' in cols or '_changes' in cols:
-#         for location in DF[cols]:
-#             location = ast.literal_eval(location)
-#             if len(location) !=0:
-#                 for list in location:
-#                      hist_data.append(list[0])
-#         new_list = change_format(hist_data)
-
-        # arr1 = np.array(new_list)
-        # arr = np.stack((arr1,arr1),axis=0)
-        # arr = np.concatenate((arr, arr), axis=0)
-        # arr = np.concatenate((arr, arr), axis=0)
-        # arr = np.concatenate((arr, arr), axis=0)
-        # plt.subplot(20,1,i)
-        # ax.imshow(arr)
-        # ax.colorbar()
-        # plt.ylabel(cols[:-10])
-        # i+=1
-        # print(i)
-        # plt.show()
-        # print(arr)
-        # break
-        # plt.savefig('plots/distributions/' + cols + '.png')
-# print(columny)
-# plt.colorbar()
-# plt.show()
