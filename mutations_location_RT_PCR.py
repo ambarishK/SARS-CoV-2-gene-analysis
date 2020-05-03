@@ -24,7 +24,7 @@ def filter_country(country = 'Poland', dataframe=DF):
     print('Number of genomes in {} is {}, {}% of whole'.format(country, len(dataframe2), round(len(dataframe2)/len(dataframe),3)))
     return dataframe2
 
-filter_country()
+# filter_country()
 # DF['orf1ab_mutations'] = DF.apply(lambda
 #                                row: (ast.literal_eval(row.orf1ab_mutations)),
 #                            axis=1)
@@ -74,36 +74,90 @@ trans = ['E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_tra
 #     return lists
 
 
+# def get_lists_colorbar():
+#     lists = []
+#     for cols in mut:
+#         hist_data = []
+#         for location in DF[cols]:
+#             location = ast.literal_eval(location)
+#
+#             if len(location) != 0:
+#                 # IF name == USA2 etc, the same for other countries
+#
+#                 for list in location:
+#
+#                     if 'N_HongKong_P' in cols:
+#                         if list[0] == 9 and location[0][2] == 'C' and location[0][1] == 'T':
+#                             location.remove(list)
+#
+#                         print(location)
+#
+#                     if list[1] == 'Y' and (list[2] == 'C' or list[2] == 'T'):
+#                         print(list[2])
+#                     elif list[1] == 'R' and (list[2] == 'A' or list[2] == 'G'):
+#                         print(list[2])
+#
+#                     else:
+#                         hist_data.append(list[0])
+#
+#         new_list = change_format(hist_data)
+#         lists.append(new_list)
+#     return lists
+
+
 def get_lists_colorbar():
     lists = []
     for cols in mut:
-        hist_data = []
+        hist_data=[]
         for location in DF[cols]:
             location = ast.literal_eval(location)
 
             if len(location) != 0:
-                # IF name == USA2 etc, the same for other countries
+                #IF name == USA2 etc, the same for other countries
 
                 for list in location:
 
                     if 'N_HongKong_P' in cols:
-                        if list[0] == 9 and location[0][2] == 'C' and location[0][1] == 'T':
+                        if list[0]==9 and location[0][2]=='C' and location[0][1]=='T':
                             location.remove(list)
 
+
+                    if 'N_USA2_P' in cols:
+                        print(list)
+                        if list[0] == 0 and location[0][2] == 'C' and location[0][1] == 'T':
+                            location.remove(list)
+                            print('removed')
+                        if list[0] == 11 and location[0][2] == 'A' and location[0][1] == 'G':
+                            location.remove(list)
+                            print('removed')
+                        if list[0] == 10 and location[0][2] == 'A' and location[0][1] == 'G':
+                            location.remove(list)
+                            print('removed')
                         print(location)
 
-                    if list[1] == 'Y' and (list[2] == 'C' or list[2] == 'T'):
-                        print(list[2])
-                    elif list[1] == 'R' and (list[2] == 'A' or list[2] == 'G'):
-                        print(list[2])
 
+                    if list[1] =='Y' and (list[2]=='C' or list[2]=='T'):
+                        print('')
+                    elif list[1]=='R' and(list[2]=='A' or list[2]=='G'):
+                        print('')
+                    elif list[1]=='W' and(list[2]=='A' or list[2]=='T'):
+                        print('')
+                    elif list[1] == 'S' and (list[2] == 'C' or list[2] == 'G'):
+                        print('')
+                    elif list[1] =='K' and (list[2]=='G' or list[2]=='T'):
+                        print('')
+                    elif list[1] =='M' and (list[2]=='A' or list[2]=='C'):
+                        print('')
                     else:
+                        print(list)
                         hist_data.append(list[0])
 
+        hist_data.append(0)
+
         new_list = change_format(hist_data)
+        print(new_list)
         lists.append(new_list)
     return lists
-
 
 
 # get_lists_colorbar()
@@ -115,7 +169,7 @@ def llwrite(list,filename='mutation_density.pg'):
             for int in _list:
                 f.write(str(int) + '\n')
 
-# llwrite(get_lists_colorbar())
+llwrite(get_lists_colorbar())
 
 def llread(filename='mutation_density.pg'):
     with open(filename, 'r') as f:
@@ -173,7 +227,7 @@ def colorbar1(gene):
         if gene1.startswith(gene):
             break
         i+=1
-    data=llread()
+    data = llread()
     fig, ax = plt.subplots()
     label = mut[i][:-10]
     arr = np.array(data[i])
@@ -201,8 +255,8 @@ def colorbar1(gene):
     # plt.show()
     # print(label)
 
-# for prime in primers:
-#     colorbar1(prime)
+for prime in primers:
+    colorbar1(prime)
 
 # for i in mut:
 #     colorbar1(i)
