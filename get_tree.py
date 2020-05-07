@@ -16,14 +16,8 @@ for i in range(LEVEL):
     prev_level = descendants_at_level[i]
     descendants_at_level.append({node: reduce(set.union, (set(net.neighbors(n)) for n in prev_level[node])) for node in net.nodes})
 
-#at_last_level_only keeps a dict {node: nodes that can be reached with LEVEL steps, but not LEVEL - 1 steps}, so for example we can have great-grandchildren without grandchildren
-if LEVEL > 0:
-    at_last_level_only = {node: (descendants_at_level[-1][node] - descendants_at_level[-2][node]) for node in net.nodes}
-else:
-    at_last_level_only = descendants_at_level[0]
-
 #dict actually used to generate list of genomes to compare
-d = descendants_at_level[-1]
+d = {node: reduce(set.union, (descendants_at_level[i][node] for i in range(LEVEL + 1))) for node in net.nodes}
 
 pairs = {frozenset({node.name, descendant.name}) for node in net.nodes for descendant in d[node] if node.name is not None and descendant.name is not None and node.name != descendant.name}
 
