@@ -27,9 +27,13 @@ names = subprocess.check_output("cat Cleaned_up_genes.fasta | grep EPI_ISL_", sh
 names = [name.decode("UTF-8") for name in names]
 names = {re.search("EPI_ISL_\\d+", name).group(): name for name in names}
 
+new_pairs = [(a, b) for a, b in pairs if a in names and b in names]
+
+print(f"{len(pairs) - len(new_pairs)} pairs removed, {len(new_pairs)} left due to missing names.")
+
 file = open("extra_comparisons.txt", "w")
-file.write(str(len(pairs)) + "\n")
-for a, b in pairs:
+file.write(str(len(new_pairs)) + "\n")
+for a, b in new_pairs:
     file.write(names[a])
     file.write("\n")
     file.write(names[b])

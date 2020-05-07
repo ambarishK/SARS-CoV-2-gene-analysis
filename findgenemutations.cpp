@@ -85,8 +85,8 @@ struct Gene {
 		ComparisonResult() = delete;
 		ComparisonResult(const Gene* compared, const Gene* reference, int distance, int protein_distance, std::vector<std::tuple<size_t, char, char>> mutations, std::vector<std::tuple<size_t, char, char>> protein_mutations) : compared(compared), reference(reference), distance(distance), protein_distance(protein_distance), mutations(std::move(mutations)), protein_mutations(std::move(protein_mutations)) {}
 		ComparisonResult(const Gene* compared, const Gene* reference) : compared(compared), reference(reference), distance(0), protein_distance(0) {
-			if(compared && reference){
-				throw std::logic_error("Compared and reference not null!");
+			if((bool) compared == (bool) reference){
+				throw std::logic_error("Compared and reference same!");
 			}
 		}
 
@@ -222,11 +222,11 @@ struct Genome {
 			std::vector<std::string> data_lines;
 			std::string line;
 			while(std::getline(ref_genome_file, line)) {
+				rstrip(line);
 				if(!line.empty() && line[0] == '>') {
 					header = std::move(line);
 					continue;
 				}
-				rstrip(line);
 				total_length += line.size();
 				data_lines.emplace_back(std::move(line));
 			}
@@ -325,6 +325,7 @@ struct Genome {
 		std::string header;
 		std::string line;
 		while(std::getline(input, line)) {
+			rstrip(line);
 			if(!line.empty() && line[0] == '>') {
 				if(!header.empty() && genome_length > MIN_GENOME_SIZE) {
 					genomes_raw.emplace_back(std::move(header), concatenate_strings(data, genome_length));
@@ -333,7 +334,6 @@ struct Genome {
 				data.clear();
 				header = std::move(line);
 			} else {
-				rstrip(line);
 				genome_length += line.size();
 				for(char& c : line) {
 					c = toupper(c);
@@ -527,6 +527,8 @@ void extra_comparisons(const Genome& reference, const std::vector<std::pair<std:
 			std::string a, b;
 			std::getline(input, a);
 			std::getline(input, b);
+			rstrip(a);
+			rstrip(b);
 			if(!input) {
 				std::cout << "Failed to read from " << extra_comparisons_filename << std::endl;
 				return;
