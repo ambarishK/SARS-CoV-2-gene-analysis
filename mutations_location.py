@@ -6,18 +6,18 @@ from scipy import stats
 import statistics
 
 pd.set_option("display.max_rows", None, "display.max_columns", None)
-x = '[ "A","B","C" , " D"]'
-x = ast.literal_eval(x)
-DF = pd.read_csv('Genome_Data-X.csv')
-DF['date'] = pd.to_datetime(DF['date']) #converting data column to data type
-#DF = DF.loc[DF['Nuc.Completeness'] == 'Complete'] #only using rows which have complete genome data
+DF = pd.read_csv('genome_neigh.csv')
+# for ff in DF:
+#     print(ff)
+DF['date'] = pd.to_datetime(DF['date'])  # converting data column to data type
+# DF = DF.loc[DF['Nuc.Completeness'] == 'Complete'] #only using rows which have complete genome data
 
-DF.sort_values(by ='date',ascending = False, inplace= True)
-DF = DF.head((len(DF)-6)) #deleting outlier data
+# DF.sort_values(by='date', ascending=False, inplace=True)
+# DF = DF.head((len(DF) - 6))  # deleting outlier data
 # print(len(DF))
-DF = DF[DF['N_gene']==0]
-# print(len(DF))
-string = 'S_gene_translation_changes'
+# string = 'S_gene_translation_changes'
+
+
 # DF['orf1ab_mutations'] = DF.apply(lambda
 #                                row: (ast.literal_eval(row.orf1ab_mutations)),
 #                            axis=1)
@@ -28,37 +28,86 @@ string = 'S_gene_translation_changes'
 #             sth = ast.literal_eval(sth)
 
 
-def change_format(list1):
+def change_format(list1):  # takes list and returns list counting how many there are 0s, 1s, 2s,... n's
     max_val = max(list1)
     value_counter = []
-    for i in range(max_val + 10):
+    for i in range(0, max_val + 1):
         value_counter.append(list1.count(i))
     return value_counter
 
 
+# print(change_format([1,5,9]))
+
+def save_dict(dict, filename):
+    with open(filename, 'w') as f:
+        for item in dict:
+            f.write(str(item) + '\n')
+            f.write(str(dict[item]) + '\n')
+    print('Dict saved as ' + filename)
+
+
+def read_dict(file, mode='normal'):
+    dic = {}
+    with open(file, 'r') as f:
+        while True:
+            line1 = f.readline().rstrip()
+            if mode == 'list':  # if values in dict are lists
+                line2 = f.readline().rstrip()
+                if not line2:
+                    break
+                else:
+                    line2 = ast.literal_eval(line2)
+            else:
+                line2 = f.readline().rstrip()
+            if not line1: break
+            if not line2: break
+            dic[line1] = line2
+    return dic
+
+
 # plt.style.use('ggplot')
 # fig, ax = plt.subplots(nrows=20,ncols=1, sharex=True, sharey=True)
-mut = ['E_gene_mutations', 'M_gene_mutations', 'S_gene_mutations', 'N_gene_mutations', 'orf1ab_mutations', 'ORF3a_mutations',
-       'ORF6_mutations', 'ORF7_mutations', 'ORF8_mutations', 'ORF10_mutations']
-trans = ['E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_translation_changes', 'N_gene_translation_changes',
-         'orf1ab_translation_changes', 'ORF3a_translation_changes', 'ORF6_translation_changes', 'ORF7_translation_changes', 'ORF8_translation_changes',
-         'ORF10_translation_changes']
+genes = ['E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10']
+
+mut = []
+trans = []
+for x in genes:
+    mut.append(x + '_mutations')
+    trans.append(x + '_translation_changes')
 
 
-def filter_country(country='Poland', dataframe=DF):
-    dataframe['country'] = dataframe['name'].apply(lambda x: str(x).split('/')[-3])
-    dataframe2 = dataframe[dataframe['country'] == country]
+# mut = ['E_gene_mutations', 'M_gene_mutations', 'S_gene_mutations', 'N_gene_mutations', 'orf1ab_mutations', 'ORF3a_mutations',
+#        'ORF6_mutations', 'ORF7_mutations', 'ORF8_mutations', 'ORF10_mutations']
+
+# trans = ['E_gene_translation_changes', 'M_gene_translation_changes', 'S_gene_translation_changes', 'N_gene_translation_changes',
+#          'orf1ab_translation_changes', 'ORF3a_translation_changes', 'ORF6_translation_changes', 'ORF7_translation_changes', 'ORF8_translation_changes',
+#          'ORF10_translation_changes']
+
+
+def filter_country(country='Poland', data=DF):
+    data['country'] = data['name'].apply(lambda x: str(x).split('/')[-3])
+    dataframe2 = data[data['country'] == country]
     print('Number of genomes in {} is {}, {}% of whole'.format(country, len(dataframe2),
-                                                               round(len(dataframe2) / len(dataframe), 3)))
+                                                               round(len(dataframe2) / len(data), 3)))
     return dataframe2
 
 
 def get_lists_colorbar():
     lists = []
-    for cols in mut:
-        hist_data=[]
-        for location in DF[cols]:
-            location = ast.literal_eval(location)
+    for genename in genes:
+        hist_data = []
+        m=0
+        DF1 = DF[DF[genename + '_invalid_nucleotides'] == 0]
+        for location in DF1[genename + '_mutations']:
+            m+=1
+            try:
+                location = ast.literal_eval(location)
+            except: #when there is naan or other value- for debugging straight away
+                print(type(location))
+                print(location)
+                print(genename)
+                print(m)
+                exit()
             if len(location) != 0:
                 for list in location:
                     hist_data.append(list[0])
@@ -66,26 +115,29 @@ def get_lists_colorbar():
         lists.append(new_list)
     return lists
 
-def llwrite(list,filename='mutation_density.pg'):
+
+def llwrite(list, filename='mutation_density.pg'):
     with open(filename, 'w') as f:
         for _list in list:
             f.write('#' + '\n')
             for inty in _list:
                 f.write(str(inty) + '\n')
 
-# llwrite(get_lists_colorbar(),'mutation_density2.pg')
 
-def llread(filename='mutation_density2.pg'):
+# llwrite(get_lists_colorbar(),'mutation_density4.pg')
+
+
+def llread(filename='mutation_density4.pg'):
     with open(filename, 'r') as f:
-        result=[]
-        i=0
+        result = []
+        i = 0
         for line in f:
             if line == '#\n':
-                if i==0:
-                    i+=1
+                if i == 0:
+                    i += 1
                 else:
                     result.append(a)
-                a=[]
+                a = []
             else:
                 a.append(int(line[:-1]))
         result.append(a)
@@ -117,12 +169,12 @@ def colorbar():
         print(mut[i])
         label = mut[i][:-10]
         arr = np.array(list)
-        arr = np.stack((arr, arr), axis=0) #thicc1
+        arr = np.stack((arr, arr), axis=0)  # thicc1
         # arr = np.concatenate((arr, arr), axis=0)
         # arr = np.concatenate((arr, arr), axis=0)
         # arr = np.concatenate((arr, arr), axis=0) #thicc4
         # ax.subplot(20,1,t)
-        im = axs[i].imshow(arr,aspect='auto',cmap='plasma')
+        im = axs[i].imshow(arr, aspect='auto', cmap='plasma')
         axs[i].set_ylabel(label, rotation=0, labelpad=25, y=0.3)
         # axs[i].xaxis.labelpad=100
         # axs[i].set_yticklabels([])
@@ -130,61 +182,151 @@ def colorbar():
         # axs[i].axis('off')
         axs[i].axes.get_xaxis().set_ticks([])
         axs[i].axes.get_yaxis().set_ticks([])
-        i+=1
+        i += 1
     # fig.colorbar(im, ax=axs)
     # plt.yticks([])
     # plt.xticks([])
-    plt.suptitle('Mutation density in genes of SARS-CoV-2 virus',y=0.95)
-    plt.savefig('./plots/density/mutation_density2.png',dpi=600)
+    plt.suptitle('Mutation density in genes of SARS-CoV-2 virus', y=0.95)
+    plt.savefig('./plots/density/mutation_density2.png', dpi=600)
     plt.show()
 
 
-def icolorbar():
+def icolorbar(gene):
     import plotly.express as px
-    data = [[1, 25, 30, 50, 1], [20, 1, 60, 80, 30], [30, 60, 1, 5, 20]]
+    i = 0
+    for gene1 in genes:
+        if gene1 == gene:
+            break
+        i += 1
+    data = llread()
+    data = [data[i]]
+    gname = gene.replace('_', ' ')
     fig = px.imshow(data,
-                    labels=dict(x="Day of Week", y="Time of Day", color="Productivity"),
-                    x=['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-                    y=['Morning', 'Afternoon', 'Evening']
+                    labels=dict(x="Length of " + gname, color="No. of mutations"),
+                    y=[gname]
                     )
-    fig.update_xaxes(side="top")
+    # fig.update_xaxes(side="top")
+    fig.update_traces(hovertemplate='Place in ' + gname + ': %{x} <br>No. of mutations: %{z} <extra></extra>')  #
+    # fig.update_traces(hovertemplate=None, selector={'name': 'Europe'})
+    name = 'div_density_chart_' + gene + '.html'
+    fig.write_html('./plots/html/' + name, full_html=False, include_plotlyjs='cdn')
+    print('File saved in directory plots/html/ as ' + name)
     fig.show()
 
 
-# icolorbar()
+# icolorbar('S_gene')
+# for i in genes:
+#     icolorbar(i)
 
-# colorbar()
+
+def icolorbar2():
+    import plotly.graph_objects as go
+    import plotly.express as px
+    data = llread()
+    fig = go.Figure()
+
+    # Add Traces
+    i=0
+    for gene in genes:
+        data1 = data[i]
+        data1 = [data1]
+        gname = gene.replace('_', ' ')
+        fig.add_trace(
+            px.imshow(data1, labels=dict(x="Length of " + gname, color="No. of mutations")))
+        i+=1
+
+    fig.add_trace(
+        go.Scatter(x=list(df.index),
+                   y=list(df.High),
+                   name="High",
+                   line=dict(color="#33CFA5")))
+
+    fig.add_trace(
+        go.Scatter(x=list(df.index),
+                   y=[df.High.mean()] * len(df.index),
+                   name="High Average",
+                   visible=False,
+                   line=dict(color="#33CFA5", dash="dash")))
+
+    fig.add_trace(
+        go.Scatter(x=list(df.index),
+                   y=list(df.Low),
+                   name="Low",
+                   line=dict(color="#F06A6A")))
+
+    fig.add_trace(
+        go.Scatter(x=list(df.index),
+                   y=[df.Low.mean()] * len(df.index),
+                   name="Low Average",
+                   visible=False,
+                   line=dict(color="#F06A6A", dash="dash")))
+
+    fig.update_layout(
+        updatemenus=[
+            dict(
+                active=0,
+                buttons=list([
+                    dict(label="None",
+                         method="update",
+                         args=[{"visible": [True, False, True, False]},
+                               {"title": "Yahoo",
+                                "annotations": []}]),
+                    dict(label="High",
+                         method="update",
+                         args=[{"visible": [True, True, False, False]},
+                               {"title": "Yahoo High",
+                                "annotations": high_annotations}]),
+                    dict(label="Low",
+                         method="update",
+                         args=[{"visible": [False, False, True, True]},
+                               {"title": "Yahoo Low",
+                                "annotations": low_annotations}]),
+                    dict(label="Both",
+                         method="update",
+                         args=[{"visible": [True, True, True, True]},
+                               {"title": "Yahoo",
+                                "annotations": high_annotations + low_annotations}]),
+                ]),
+            )
+        ])
+
+
+icolorbar2()
+
+
+
+
 
 
 def colorbar1(gene):
-    i=0
+    i = 0
     for gene1 in mut:
         if gene1.startswith(gene):
             break
-        i+=1
-    data=llread()
+        i += 1
+    data = llread()
     fig, ax = plt.subplots()
-    label = mut[i][:-10]
-    print(data[i])
-    arr = np.array(del_zscore(data[i],20))
+    # label = mut[i][:-10]
+    # print(data[i])
+    arr = np.array(del_zscore(data[i], 20))
     # print(len(arr))
     # print((arr))
-    print('Mean number of mutations is {}'.format(round(statistics.mean(map(float, arr))),2))
-    # indexNames = dfObj[(dfObj['Age'] >= 30) & (dfObj['Country'] == 'India')].index
-    arr = np.stack((arr,arr),axis=0) #thicc1
-    im = ax.imshow(arr,extent=(0,1,0,0.1),cmap='plasma')
+    print('Mean number of mutations is {}'.format(round(statistics.mean(map(float, arr))), 2))
+    arr = np.stack((arr, arr), axis=0)  # thicc1
+    im = ax.imshow(arr, extent=(0, 1, 0, 0.1), cmap='plasma')
     ax.axes.get_yaxis().set_ticks([])
-    ax.set_xlabel('Length of ' + label + ' (' + str(len(data[i])) + ')', labelpad=10)
+    ax.set_xlabel('Length of ' + gene + ' (' + str(len(data[i])) + ')', labelpad=10)
     fig.colorbar(im, ax=ax)
     plt.yticks([])
     plt.xticks([])
-    plt.suptitle('Mutation density in ' + label +  ' of SARS-CoV-2 virus', y=0.95)
-    plt.savefig('./plots/density/mutation_density_' + label + '.png', dpi=600)
-    plt.show()
+    plt.suptitle('Mutation density in ' + gene + ' of SARS-CoV-2 virus', y=0.95)
+    plt.savefig('./plots/density/mutation_density_' + gene + '.png', dpi=600)
+    print('File saved in plots/density as mutation_density_{}.png'.format(gene))
+    # plt.show()
     # print(label)
 
-# colorbar1('N_gene')
+# colorbar1('M_gene')
 
 
-for i in mut:
-    colorbar1(i)
+# for i in genes:
+#     colorbar1(i)
