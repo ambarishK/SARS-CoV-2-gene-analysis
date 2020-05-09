@@ -224,78 +224,46 @@ def icolorbar2():
     import plotly.express as px
     data = llread()
     fig = go.Figure()
-
-    # Add Traces
     i=0
     for gene in genes:
-        data1 = data[i]
-        data1 = [data1]
+        data1 = [data[i]]
         gname = gene.replace('_', ' ')
         fig.add_trace(
-            px.imshow(data1, labels=dict(x="Length of " + gname, color="No. of mutations")))
+            px.imshow(data1, labels=dict(x="Length of " + gname, color="No. of mutations")).data[0])
+
         i+=1
 
-    fig.add_trace(
-        go.Scatter(x=list(df.index),
-                   y=list(df.High),
-                   name="High",
-                   line=dict(color="#33CFA5")))
+    def get_buttons():
+        result=[]
+        i=0
+        for gene in genes:
+            ltest = [False]*len(genes)
+            ltestt = ltest
+            ltestt[i] = True
+            a = dict(label=gene, method="update", args=[{"visible": ltestt}, {"title": gene, "annotations": []}])
+            result.append(a)
+            i+=1
 
-    fig.add_trace(
-        go.Scatter(x=list(df.index),
-                   y=[df.High.mean()] * len(df.index),
-                   name="High Average",
-                   visible=False,
-                   line=dict(color="#33CFA5", dash="dash")))
+        return result
 
-    fig.add_trace(
-        go.Scatter(x=list(df.index),
-                   y=list(df.Low),
-                   name="Low",
-                   line=dict(color="#F06A6A")))
-
-    fig.add_trace(
-        go.Scatter(x=list(df.index),
-                   y=[df.Low.mean()] * len(df.index),
-                   name="Low Average",
-                   visible=False,
-                   line=dict(color="#F06A6A", dash="dash")))
 
     fig.update_layout(
         updatemenus=[
             dict(
-                active=0,
-                buttons=list([
-                    dict(label="None",
-                         method="update",
-                         args=[{"visible": [True, False, True, False]},
-                               {"title": "Yahoo",
-                                "annotations": []}]),
-                    dict(label="High",
-                         method="update",
-                         args=[{"visible": [True, True, False, False]},
-                               {"title": "Yahoo High",
-                                "annotations": high_annotations}]),
-                    dict(label="Low",
-                         method="update",
-                         args=[{"visible": [False, False, True, True]},
-                               {"title": "Yahoo Low",
-                                "annotations": low_annotations}]),
-                    dict(label="Both",
-                         method="update",
-                         args=[{"visible": [True, True, True, True]},
-                               {"title": "Yahoo",
-                                "annotations": high_annotations + low_annotations}]),
-                ]),
+                active=1,
+                buttons=get_buttons(),
             )
         ])
 
+    fig.update_traces(hovertemplate='Place in gene: %{x} <br>No. of mutations: %{z} <extra></extra>')
+    name = 'div_density_chart_allgenes.html'
+    fig.write_html('./plots/html/' + name, full_html=False, include_plotlyjs='cdn')
+    print('File saved in directory plots/html/ as ' + name)
 
-icolorbar2()
+    fig.show()
 
 
-
-
+# icolorbar2()
 
 
 def colorbar1(gene):
