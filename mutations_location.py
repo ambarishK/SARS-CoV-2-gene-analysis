@@ -7,10 +7,7 @@ import statistics
 
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 DF = pd.read_csv('genome_neigh.csv')
-# for ff in DF:
-#     print(ff)
 DF['date'] = pd.to_datetime(DF['date'])  # converting data column to data type
-# DF = DF.loc[DF['Nuc.Completeness'] == 'Complete'] #only using rows which have complete genome data
 
 # DF.sort_values(by='date', ascending=False, inplace=True)
 # DF = DF.head((len(DF) - 6))  # deleting outlier data
@@ -163,29 +160,17 @@ def colorbar():
     i = 0
     data = llread()
     fig, axs = plt.subplots(10, sharey=True, sharex=False)
-    # a = []
     for list in data:
         list = del_zscore(list, 10)
         print(mut[i])
         label = mut[i][:-10]
         arr = np.array(list)
         arr = np.stack((arr, arr), axis=0)  # thicc1
-        # arr = np.concatenate((arr, arr), axis=0)
-        # arr = np.concatenate((arr, arr), axis=0)
-        # arr = np.concatenate((arr, arr), axis=0) #thicc4
-        # ax.subplot(20,1,t)
-        im = axs[i].imshow(arr, aspect='auto', cmap='plasma')
+        axs[i].imshow(arr, aspect='auto', cmap='plasma')
         axs[i].set_ylabel(label, rotation=0, labelpad=25, y=0.3)
-        # axs[i].xaxis.labelpad=100
-        # axs[i].set_yticklabels([])
-        # plt.ylabel(cols[:-10])
-        # axs[i].axis('off')
         axs[i].axes.get_xaxis().set_ticks([])
         axs[i].axes.get_yaxis().set_ticks([])
         i += 1
-    # fig.colorbar(im, ax=axs)
-    # plt.yticks([])
-    # plt.xticks([])
     plt.suptitle('Mutation density in genes of SARS-CoV-2 virus', y=0.95)
     plt.savefig('./plots/density/mutation_density2.png', dpi=600)
     plt.show()
@@ -230,7 +215,6 @@ def icolorbar2():
         gname = gene.replace('_', ' ')
         fig.add_trace(
             px.imshow(data1, labels=dict(x="Length of " + gname, color="No. of mutations")).data[0])
-
         i+=1
 
     def get_buttons():
@@ -240,17 +224,16 @@ def icolorbar2():
             ltest = [False]*len(genes)
             ltestt = ltest
             ltestt[i] = True
-            a = dict(label=gene, method="update", args=[{"visible": ltestt}, {"title": gene, "annotations": []}])
+            a = dict(label=gene.replace('_', ' '), method="update", args=[{"visible": ltestt}, {"title": gene.replace('_', ' '), "annotations": []}])
             result.append(a)
             i+=1
 
         return result
 
-
     fig.update_layout(
         updatemenus=[
             dict(
-                active=1,
+                active=4,
                 buttons=get_buttons(),
             )
         ])
@@ -274,11 +257,7 @@ def colorbar1(gene):
         i += 1
     data = llread()
     fig, ax = plt.subplots()
-    # label = mut[i][:-10]
-    # print(data[i])
     arr = np.array(del_zscore(data[i], 20))
-    # print(len(arr))
-    # print((arr))
     print('Mean number of mutations is {}'.format(round(statistics.mean(map(float, arr))), 2))
     arr = np.stack((arr, arr), axis=0)  # thicc1
     im = ax.imshow(arr, extent=(0, 1, 0, 0.1), cmap='plasma')
