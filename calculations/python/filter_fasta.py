@@ -1,4 +1,5 @@
 import argparse
+from calculations.python.paths import *
 
 
 def filter_fasta_file(input_filename: str, output_filename: str) -> None:
@@ -32,7 +33,7 @@ def filter_fasta_file(input_filename: str, output_filename: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", type=str, help="input file", default="gisaid_hcov-19_2020_04_29_22.fasta")
-    parser.add_argument("-o", type=str, help="output file", default="Cleaned_up_genes.fasta")
+    parser.add_argument("-i", type=str, help="input file", default=data_path(UNFILTERED_GENOMES))
+    parser.add_argument("-o", type=str, help="output file", default=data_path(FILTERED_GENOMES))
     args = parser.parse_args()
     filter_fasta_file(args.i, args.o)

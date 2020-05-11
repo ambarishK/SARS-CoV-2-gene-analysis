@@ -1,3 +1,5 @@
 calculations/c++/findgenemutations
 data
 !data/reference
+.idea
+__pycache__

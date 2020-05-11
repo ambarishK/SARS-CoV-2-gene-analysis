@@ -7,6 +7,7 @@ from multiprocessing import cpu_count
 from functools import partial
 import Levenshtein
 import time
+from calculations.python.paths import *
 
 def transcribe(sequence):
     return sequence.replace('T', 'U')
@@ -92,7 +93,7 @@ def get_reference_gene():
     gene_names = list()
     ref_genome = ''
 
-    with open('./ReferenceGenes/genes.txt', 'r') as ref_info_file, open('./ReferenceGenes/REFERENCE_GENOME.fasta', 'r') as ref_genome_file:
+    with open(data_path(REFERENCE_GENES), 'r') as ref_info_file, open(data_path(REFERENCE_GENOME), 'r') as ref_genome_file:
         for line in ref_genome_file:
             if not (line.startswith('>')):
                 ref_genome += line.rstrip()
@@ -115,7 +116,7 @@ def count_all():
 
     time_start = time.time()
 
-    with open('Cleaned_up_genes.fasta', 'r') as f:
+    with open(data_path(FILTERED_GENOMES), 'r') as f:
         genome = ''
         genome_header = ''
         for line in tqdm(f):
@@ -145,7 +146,7 @@ def count_all():
 
     print("In total we have parsed {} genomes".format(len(all_genes)))
 
-    with open('distances.txt', 'w') as output_file:
+    with open(data_path(CALCULATED_GENOMES_DATA), 'w') as output_file:
         for genome_header, genes, edit_distance, genome in tqdm(zip(genomes_headers, all_genes, edit_distances, genomes)):
             output_file.write(genome_header)
             genes.append(['whole_genome', 0, len(genome), edit_distance])

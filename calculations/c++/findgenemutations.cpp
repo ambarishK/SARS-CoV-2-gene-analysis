@@ -14,6 +14,7 @@
 #include "levenshtein.h"
 #include "python_printer.h"
 #include "string_tools.h"
+#include "paths.h"
 
 using namespace std::string_literals;
 
@@ -481,22 +482,30 @@ void print_as_python(std::ostream& o, const Genome::ComparisonResult& cr) {
 	print_as_python_dict(o, "compared"s, cr.compared.header, "reference"s, cr.reference.header, "genes"s, cr.genes, "distance"s, cr.distance);
 }
 
-void count_all(const Genome& reference, const std::string& genomes_filename, const std::string& output_filename) {
+std::ifstream open_file_i(const std::string& filename) {
+	std::ifstream f(filename);
+	if(!f.is_open()) {
+		throw std::runtime_error("Failed to open file " + filename);
+	}
+	return f;
+}
+
+std::ofstream open_file_o(const std::string& filename) {
+	std::ofstream f(filename);
+	if(!f.is_open()) {
+		throw std::runtime_error("Failed to open file " + filename);
+	}
+	return f;
+}
+
+void calculate_genomes(const Genome& reference, const std::string& genomes_filename, const std::string& output_filename) {
 	std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> genomes;
 	{
-		std::ifstream input(genomes_filename);
-		if(!input.is_open()) {
-			std::cout << "Failed to open file " << genomes_filename << std::endl;
-			return;
-		}
+		auto input = open_file_i(genomes_filename);
 		genomes = Genome::load_genomes(input, reference, std::cout);
 	}
 	{
-		std::ofstream output(output_filename);
-		if(!output.is_open()) {
-			std::cout << "Failed to open file " << output_filename << std::endl;
-			return;
-		}
+		auto output = open_file_o(output_filename);
 		output << genomes.size() << '\n';
 		for(const auto& e : genomes) {
 			print_as_python(output, e);
@@ -508,11 +517,7 @@ void count_all(const Genome& reference, const std::string& genomes_filename, con
 void extra_comparisons(const Genome& reference, const std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>>& genomes, const std::string& extra_comparisons_filename, const std::string& output_filename) {
 	std::vector<std::pair<std::string, std::string>> extra_comparison_tasks;
 	{
-		std::ifstream input(extra_comparisons_filename);
-		if(!input.is_open()) {
-			std::cout << "Failed to open file " << extra_comparisons_filename << std::endl;
-			return;
-		}
+		auto input = open_file_i(extra_comparisons_filename);
 		size_t tasks;
 		input >> tasks;
 		if(input.fail() || input.bad()) {
@@ -565,7 +570,7 @@ void extra_comparisons(const Genome& reference, const std::vector<std::pair<std:
 	}
 	std::cout << errors << " distance errors in " << extra_comparison_results.size() << " comparisons." << std::endl;
 	{
-		std::ofstream output(output_filename);
+		auto output = open_file_o(output_filename);
 		if(!output.is_open()) {
 			std::cout << "Failed to open file " << output_filename << std::endl;
 			return;
@@ -582,10 +587,7 @@ std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::Compariso
 	std::unordered_map<std::string, std::string> genomes_raw_map; //header -> data
 	{
 		std::vector<std::pair<std::string, std::string>> genomes_raw; //header, data
-		std::ifstream input(genomes_filename);
-		if(!input.is_open()) {
-			throw std::runtime_error("Failed to open file " + genomes_filename);
-		}
+		auto input = open_file_i(genomes_filename);
 		genomes_raw = Genome::load_genomes_raw(input, std::cout);
 		for(const auto&[h, v] : genomes_raw) {
 			genomes_raw_map.emplace(h, std::move(v));
@@ -594,10 +596,7 @@ std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::Compariso
 	std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> output;
 	{
 		using DataT = std::pair<Genome::python_print_type, Genome::ComparisonResult::python_print_type>;
-		std::ifstream input(input_filename);
-		if(!input.is_open()) {
-			throw std::runtime_error("Failed to open file " + input_filename);
-		}
+		auto input = open_file_i(input_filename);
 		size_t size;
 		input >> size;
 		if(input.bad() || input.fail()) {
@@ -618,30 +617,22 @@ std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::Compariso
 }
 
 int main(int argc, char* argv[]){
+	using namespace filenames;
 	if(argc < 2 || (argv[1] != "distances"s && argv[1] != "comparisons"s)) {
 		std::cout << "USAGE:\nfindgenemutations <distances|comparisons>\n";
 		return -1;
 	}
-	std::string ref_info_filename = "./ReferenceGenes/genes.txt", ref_genome_filename = "./ReferenceGenes/REFERENCE_GENOME.fasta";
 	std::unique_ptr<Genome> reference;
 	{
-		std::ifstream ref_info_file(ref_info_filename);
-		std::ifstream ref_genome_file(ref_genome_filename);
-		if(!ref_info_file.is_open()) {
-			std::cout << "Failed to open file " << ref_info_filename << std::endl;
-			return -1;
-		}
-		if(!ref_genome_file.is_open()) {
-			std::cout << "Failed to open file " << ref_genome_filename << std::endl;
-			return -1;
-		}
+		auto ref_info_file = open_file_i(data_path(REFERENCE_GENES));
+		auto ref_genome_file = open_file_i(data_path(REFERENCE_GENOME));
 		reference = Genome::load_reference(ref_info_file, ref_genome_file);
 	}
 	if(argv[1] == "distances"s) {
-		count_all(*reference, "Cleaned_up_genes.fasta", "distances3.txt");
+		calculate_genomes(*reference, data_path(FILTERED_GENOMES), data_path(CALCULATED_GENOMES_DATA));
 	} else {
-		std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> genomes = load_genomes_from_files(*reference, "Cleaned_up_genes.fasta", "distances3.txt");
+		std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> genomes = load_genomes_from_files(*reference, data_path(FILTERED_GENOMES), data_path(CALCULATED_GENOMES_DATA));
 		std::cout << "Genomes loaded" << std::endl;
-		extra_comparisons(*reference, genomes, "extra_comparisons.txt", "extra_comparisons_results.txt");
+		extra_comparisons(*reference, genomes, data_path(EXTRA_COMPARISONS_REQUESTS), data_path(EXTRA_COMPARISONS_RESULTS));
 	}
 }

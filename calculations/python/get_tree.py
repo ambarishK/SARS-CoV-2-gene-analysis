@@ -1,9 +1,12 @@
 from Bio import Phylo
-import subprocess, networkx, re, os
+import subprocess, networkx, re
 from functools import reduce
+from calculations.python.paths import *
+
+
 #Phylo incorrectly parses the gisaid_china.MCC.trees file, so we modify it, assume that EPI_ISL_\d+ is an identifier
-os.system('sed -E "s/h\S+EPI_ISL_/EPI_ISL_/" gisaid_china.MCC.trees | sed -E "s/\|\S+[^,]//" > gisaid_china_mod.MCC.trees')
-trees = Phylo.parse('gisaid_china_mod.MCC.trees', 'nexus')
+subprocess.check_output(f'sed -E "s/h\S+EPI_ISL_/EPI_ISL_/" {data_path(TREE_UNFILTERED)} | sed -E "s/\|\S+[^,]//" > {data_path(TREE_FILTERED)}', shell=True)
+trees = Phylo.parse(data_path(TREE_FILTERED), 'nexus')
 tree = trees.__next__()
 net = Phylo.to_networkx(tree).to_undirected()
 
@@ -23,7 +26,7 @@ pairs = {frozenset({node.name, descendant.name}) for node in net.nodes for desce
 
 pairs = [tuple(p) for p in pairs]
 
-names = subprocess.check_output("cat Cleaned_up_genes.fasta | grep EPI_ISL_", shell=True).split()
+names = subprocess.check_output(f"cat {data_path(FILTERED_GENOMES)} | grep EPI_ISL_", shell=True).split()
 names = [name.decode("UTF-8") for name in names]
 names = {re.search("EPI_ISL_\\d+", name).group(): name for name in names}
 
@@ -31,7 +34,7 @@ new_pairs = [(a, b) for a, b in pairs if a in names and b in names]
 
 print(f"{len(pairs) - len(new_pairs)} pairs removed, {len(new_pairs)} left due to missing names.")
 
-file = open("extra_comparisons.txt", "w")
+file = open(data_path(EXTRA_COMPARISONS_REQUESTS), "w")
 file.write(str(len(new_pairs)) + "\n")
 for a, b in new_pairs:
     file.write(names[a])

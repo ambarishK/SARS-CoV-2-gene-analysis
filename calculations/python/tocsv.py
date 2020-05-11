@@ -2,9 +2,10 @@ import pandas as pd
 import ast
 import csv
 import itertools
+from calculations.python.paths import *
 
 
-def distances_tocsv(file='extra_comparisons_results.txt', output_file='comparisons.csv'):
+def distances_tocsv(file=data_path(EXTRA_COMPARISONS_RESULTS), output_file=data_path(COMPARISONS_CSV)):
     with open(file, 'r') as file:
         data_list = []
 
@@ -40,7 +41,7 @@ def distances_tocsv(file='extra_comparisons_results.txt', output_file='compariso
 
 
 distances_tocsv()
-#distances_tocsv('distances3.txt', 'distances.csv')
+#distances_tocsv(data_path(CALCULATED_GENOMES_DATA), data_path(DISTANCES_CSV))
 
 
 def merge_csv(file1, file2, output_file):
@@ -55,7 +56,7 @@ def merge_csv(file1, file2, output_file):
 
 
 
-merge_csv('distances.csv', 'comparisons.csv', 'genome_neigh.csv')
+merge_csv(data_path(DISTANCES_CSV), data_path(COMPARISONS_CSV), data_path(MERGED_CSV))
 
 
 
