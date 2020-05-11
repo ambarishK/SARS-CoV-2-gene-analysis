@@ -80,13 +80,13 @@ struct Gene {
 	size_t invalid_nucleotides() const;
 
 	struct ComparisonResult {
-		using python_print_type = decltype(python_loader_struct<std::string, std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>>, std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>>>::with_names_values("name"_sl, "mutations"_sl, "protein_mutations"_sl));
+		using python_print_type = decltype(python_loader_struct<std::string, std::vector<EditOperation>, std::vector<EditOperation>>::with_names_values("name"_sl, "mutations"_sl, "protein_mutations"_sl));
 		const Gene& compared;
 		const Gene& reference;
-		std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>> mutations;
-		std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>> protein_mutations;
+		std::vector<EditOperation> mutations;
+		std::vector<EditOperation> protein_mutations;
 		ComparisonResult() = delete;
-		ComparisonResult(const Gene& compared, const Gene& reference, std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>> mutations, std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>> protein_mutations) : compared(compared), reference(reference), mutations(std::move(mutations)), protein_mutations(std::move(protein_mutations)) {}
+		ComparisonResult(const Gene& compared, const Gene& reference, std::vector<EditOperation> mutations, std::vector<EditOperation> protein_mutations) : compared(compared), reference(reference), mutations(std::move(mutations)), protein_mutations(std::move(protein_mutations)) {}
 
 		static ComparisonResult from_parsed_python(const python_print_type& p, const Genome& r_compared, const Genome& r_reference);
 	};
