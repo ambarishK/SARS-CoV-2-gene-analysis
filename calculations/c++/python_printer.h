@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <utility>
 #include <functional>
+#include <variant>
 
 #include "string_tools.h"
 
@@ -20,6 +21,12 @@ void print_as_python(std::ostream& o, char c);
 
 template<typename T>
 void print_as_python(std::ostream& o, const std::vector<T>& vec);
+
+template<typename A, typename B>
+void print_as_python(std::ostream& o, const std::pair<A, B>& p);
+
+template<typename... Ts>
+void print_as_python(std::ostream& o, const std::variant<Ts...>& v);
 
 template<typename T, typename std::enable_if_t<(std::is_arithmetic_v<T> && !std::is_same_v<T, char>), int> = 0>
 void print_as_python(std::ostream& o, const T& arg) {
@@ -76,6 +83,17 @@ void print_as_python(std::ostream& o, const std::vector<T>& vec) {
 template<typename A, typename B>
 void print_as_python(std::ostream& o, const std::pair<A, B>& p) {
 	print_as_python(o, std::forward_as_tuple(p.first, p.second));
+}
+
+template<typename... Ts>
+void print_as_python(std::ostream& o, const std::variant<Ts...>& v) {
+	o << '(';
+	o << v.index();
+	o << ", ";
+	std::visit([&](const auto& arg){
+		print_as_python(o, arg);
+	}, v);
+	o << ')';
 }
 
 void print_as_python_dict_(std::ostream&);
@@ -170,6 +188,12 @@ template<>
 struct python_loader<unsigned> : python_loader_int<unsigned> {};
 
 template<>
+struct python_loader<short> : python_loader_int<short> {};
+
+template<>
+struct python_loader<unsigned short> : python_loader_int<unsigned short> {};
+
+template<>
 struct python_loader<long> : python_loader_int<long> {};
 
 template<>
@@ -213,6 +237,42 @@ struct python_loader<std::vector<T>> {
 	}
 };
 
+template<typename... Ts>
+struct python_loader<std::variant<Ts...>> {
+	static std::variant<Ts...> load(std::istream& input) {
+		input >> std::ws;
+		if(input.peek() != '(') {
+			throw std::runtime_error("Incorrect input.");
+		}
+		input.get();
+		size_t index = python_loader<size_t>::load(input);
+		input >> std::ws;
+		if(input.peek() != ',') {
+			throw std::runtime_error("Incorrect input.");
+		}
+		input.get();
+		std::variant<Ts...> variant = get_variant(input, index);
+		input >> std::ws;
+		if(input.peek() != ')') {
+			throw std::runtime_error("Incorrect input.");
+		}
+		input.get();
+		return variant;
+	}
+private:
+	template<size_t I = 0>
+	static std::variant<Ts...> get_variant(std::istream& input, size_t index) {
+		if constexpr (I == sizeof...(Ts)) {
+			throw std::runtime_error("Incorrect input.");
+			} else {
+			if(index == I) {
+				return std::variant<Ts...>(std::in_place_index<I>, python_loader<std::tuple_element_t<I, std::tuple<Ts...>>>::load(input));
+			} else {
+				return get_variant<I + 1>(input, index);
+			}
+		}
+	}
+};
 
 template<typename... Ts>
 struct python_loader<std::tuple<Ts...>> {

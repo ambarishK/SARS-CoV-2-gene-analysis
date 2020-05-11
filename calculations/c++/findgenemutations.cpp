@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <iterator>
 
-#include "levenshtein.h"
+#include "edit_distance.h"
 #include "python_printer.h"
 #include "string_tools.h"
 #include "paths.h"
@@ -21,6 +21,10 @@ using namespace std::string_literals;
 constexpr const size_t PRE_SUF_LENGTH = 64;
 constexpr const size_t MIN_GENOME_SIZE = 29000;
 static_assert(PRE_SUF_LENGTH > 3);
+
+#ifndef DEBUG
+#define DEBUG 0
+#endif
 
 std::string gene_to_protein(std::string_view gene) {
 	static const std::unordered_map<std::string, std::string> codons {
@@ -76,20 +80,13 @@ struct Gene {
 	size_t invalid_nucleotides() const;
 
 	struct ComparisonResult {
-		using python_print_type = decltype(python_loader_struct<std::string, int, int, std::vector<std::tuple<size_t, char, char>>, std::vector<std::tuple<size_t, char, char>>>::with_names_values("name"_sl, "distance"_sl, "protein_distance"_sl, "mutations"_sl, "protein_mutations"_sl));
-		const Gene* compared; //may be null
-		const Gene* reference; //may be null
-		int distance;
-		int protein_distance;
-		std::vector<std::tuple<size_t, char, char>> mutations;
-		std::vector<std::tuple<size_t, char, char>> protein_mutations;
+		using python_print_type = decltype(python_loader_struct<std::string, std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>>, std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>>>::with_names_values("name"_sl, "mutations"_sl, "protein_mutations"_sl));
+		const Gene& compared;
+		const Gene& reference;
+		std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>> mutations;
+		std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>> protein_mutations;
 		ComparisonResult() = delete;
-		ComparisonResult(const Gene* compared, const Gene* reference, int distance, int protein_distance, std::vector<std::tuple<size_t, char, char>> mutations, std::vector<std::tuple<size_t, char, char>> protein_mutations) : compared(compared), reference(reference), distance(distance), protein_distance(protein_distance), mutations(std::move(mutations)), protein_mutations(std::move(protein_mutations)) {}
-		ComparisonResult(const Gene* compared, const Gene* reference) : compared(compared), reference(reference), distance(0), protein_distance(0) {
-			if((bool) compared == (bool) reference){
-				throw std::logic_error("Compared and reference same!");
-			}
-		}
+		ComparisonResult(const Gene& compared, const Gene& reference, std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>> mutations, std::vector<std::variant<uint16_t, std::pair<uint16_t, char>>> protein_mutations) : compared(compared), reference(reference), mutations(std::move(mutations)), protein_mutations(std::move(protein_mutations)) {}
 
 		static ComparisonResult from_parsed_python(const python_print_type& p, const Genome& r_compared, const Genome& r_reference);
 	};
@@ -111,18 +108,20 @@ void print_as_python(std::ostream& o, const Gene& gene) {
 }
 
 void print_as_python(std::ostream& o, const Gene::ComparisonResult& cr) {
-	if(cr.compared && cr.reference) {
-		print_as_python_dict(o, "name"s, cr.compared->name, "distance"s, cr.distance, "protein_distance"s, cr.protein_distance, "mutations"s, cr.mutations, "protein_mutations"s, cr.protein_mutations);
-	} else {
-		print_as_python_dict(o, "name"s, cr.compared ? cr.compared->name : cr.reference->name, "distance"s, -1, "protein_distance"s, cr.protein_distance, "mutations"s, cr.mutations, "protein_mutations"s, cr.protein_mutations);
-	}
+	print_as_python_dict(o, "name"s, cr.compared.name, "mutations"s, cr.mutations, "protein_mutations"s, cr.protein_mutations);
 }
 
 template<typename It1, typename It2, typename F>
 void transform_with_progress(It1 input_begin, It1 input_end, It2 output_begin, F&& function, std::ostream& output) {
 	std::atomic<size_t> done = 0;
 	size_t total = std::distance(input_begin, input_end);
-	std::transform(std::execution::par_unseq, input_begin, input_end, output_begin, [function(std::move(function)), &done, &output, total](auto arg){
+	std::transform(
+	#if DEBUG
+	std::execution::seq,
+	#else
+	std::execution::par_unseq,
+	#endif
+	input_begin, input_end, output_begin, [function(std::move(function)), &done, &output, total](auto arg){
 		auto result = function(arg);
 		int d = done.fetch_add(1);
 		if(d * 100 / total != (d + 1) * 100 / total) {
@@ -204,11 +203,15 @@ struct Genome {
 
 		int score = 0;
 		for(const auto&[f, s] : fragments) {
-			score += lev_edit_distance_int<int>(data.data() + f.first, f.second - f.first, reference.data.data() + s.first, s.second - s.first);
+			try {
+				score += edit_distance_int(data.data() + f.first, f.second - f.first, reference.data.data() + s.first, s.second - s.first)->size();
+			} catch (const std::runtime_error&) {
+				return -5;
+			}
 		}
 
 		for(const Gene::ComparisonResult& cr : genes_compared) {
-			score += cr.distance;
+			score += cr.mutations.size();
 		}
 
 		return score;
@@ -264,7 +267,6 @@ struct Genome {
 
 			size_t boundary_left = ref_gene.begin > tolerance ? ref_gene.begin - tolerance : 0ULL;
 			if(boundary_left >= genome->data.size()) {
-				genes_compared.emplace_back(nullptr, ref_gene_ptr.get());
 				continue;
 			}
 			size_t boundary_right = std::min(genome->data.size(), ref_gene.end + tolerance);
@@ -277,10 +279,10 @@ struct Genome {
 			{
 				for(size_t i = 0; i + PRE_SUF_LENGTH - 1 < seq.size(); ++i) {
 					if(seq[i] == 'A' && seq[i + 1] == 'T' && seq[i + 2] == 'G') {
-						int distance = lev_edit_distance_int<int>(seq.data() + i, PRE_SUF_LENGTH, ref_prefix.data(), PRE_SUF_LENGTH, prefix_distance);
-						if(distance < prefix_distance) {
+						auto d = edit_distance_int(seq.data() + i, PRE_SUF_LENGTH, ref_prefix.data(), PRE_SUF_LENGTH, prefix_distance);
+						if(d && (int) d->size() < prefix_distance) {
 							prefix = i;
-							prefix_distance = distance;
+							prefix_distance = d->size();
 						}
 					}
 				}
@@ -288,20 +290,18 @@ struct Genome {
 			{
 				for(size_t i = PRE_SUF_LENGTH - 3; i + 2 < seq.size(); ++i) {
 					if(seq[i] == 'T' && ((seq[i + 1] == 'A' && seq[i + 2] == 'G') || (seq[i + 1] == 'A' && seq[i + 2] == 'A') || (seq[i + 1] == 'G' && seq[i + 2] == 'A'))) {
-						int distance = lev_edit_distance_int<int>(seq.data() + i + 3 - PRE_SUF_LENGTH, PRE_SUF_LENGTH, ref_suffix.data(), PRE_SUF_LENGTH, suffix_distance);
-						if(distance < suffix_distance) {
+						auto d = edit_distance_int(seq.data() + i + 3 - PRE_SUF_LENGTH, PRE_SUF_LENGTH, ref_suffix.data(), PRE_SUF_LENGTH, suffix_distance);
+						if(d && (int) d->size() < suffix_distance) {
 							suffix = i + 3;
-							suffix_distance = distance;
+							suffix_distance = d->size();
 						}
 					}
 				}
 			}
 			if(prefix == std::string::npos || suffix == std::string::npos) {
-				genes_compared.emplace_back(nullptr, ref_gene_ptr.get());
 				continue;
 			}
 			if(prefix > suffix) {
-				genes_compared.emplace_back(nullptr, ref_gene_ptr.get());
 				continue;
 			}
 			std::string_view found_gene(seq.data() + prefix, suffix - prefix);
@@ -313,7 +313,11 @@ struct Genome {
 				boundary_left + suffix,
 				gene_to_protein(found_gene)
 			));
-			genes_compared.push_back(genome->genes.back()->compare_to(ref_gene));
+			try {
+				genes_compared.push_back(genome->genes.back()->compare_to(ref_gene));
+			} catch (const std::runtime_error&) {
+				genome->genes.pop_back();
+			}
 		}
 		std::unique_ptr<Genome::ComparisonResult> cr = std::make_unique<Genome::ComparisonResult>(*genome, reference, std::move(genes_compared), genome->distance_to(reference, genes_compared));
 		return std::make_pair(std::move(genome), std::move(cr));
@@ -371,44 +375,35 @@ struct Genome {
 			genomes.emplace_back(g, cr);
 		}
 
-		size_t errors = 0;
+		size_t distance_errors = 0, incomplete_genomes = 0;
 		for(const auto&[genome, cr] : genomes) {
 			if(cr->distance < 0) {
-				++errors;
+				++distance_errors;
+			}
+			if(genome->genes.size() < reference.genes.size()) {
+				++incomplete_genomes;
 			}
 		}
-		info << errors << " distance errors" << std::endl;
+		info << distance_errors << " distance errors" << std::endl;
+		info << incomplete_genomes << " incomplete genomes" << std::endl;
 		info << "In total we have processed " << genomes.size() << " genomes" << std::endl;
 		return genomes;
 	}
 
 	Genome::ComparisonResult compare_to(const Genome& reference) const {
-		std::unordered_map<std::string, Gene::ComparisonResult> genes_compared;
+		std::vector<Gene::ComparisonResult> genes_compared;
 		for(const auto& gene: genes) {
-			bool found = false;
 			for(const auto& gene_reference: reference.genes) {
 				if(gene_reference->name == gene->name) {
-					genes_compared.emplace(gene->name, gene->compare_to(*gene_reference));
-					found = true;
+					try {
+						genes_compared.emplace_back(gene->compare_to(*gene_reference));
+					} catch (const std::runtime_error&) {}
 					break;
 				}
 			}
-			if(!found) {
-				genes_compared.emplace(gene->name, Gene::ComparisonResult(gene.get(), nullptr));
-			}
 		}
-		for(const auto& gene_reference: reference.genes) {
-			if(genes_compared.find(gene_reference->name) == genes_compared.end()) {
-				genes_compared.emplace(gene_reference->name, Gene::ComparisonResult(nullptr, gene_reference.get()));
-			}
-		}
-		std::vector<Gene::ComparisonResult> genes_compared_vec;
-		genes_compared_vec.reserve(genes_compared.size());
-		for(auto it = genes_compared.begin(); it != genes_compared.end(); ++it) {
-			genes_compared_vec.push_back(std::move(it->second));
-		}
-		int distance = distance_to(reference, genes_compared_vec);
-		return Genome::ComparisonResult(*this, reference, std::move(genes_compared_vec), distance);
+		int distance = distance_to(reference, genes_compared);
+		return Genome::ComparisonResult(*this, reference, std::move(genes_compared), distance);
 	}
 
 	static std::unique_ptr<Genome> from_parsed_python(const python_print_type& p, std::string data) {
@@ -449,7 +444,7 @@ Gene::ComparisonResult Gene::ComparisonResult::from_parsed_python(const Gene::Co
 			break;
 		}
 	}
-	return Gene::ComparisonResult(compared, reference, std::get<1>(p.as_tuple()), std::get<2>(p.as_tuple()), std::get<3>(p.as_tuple()), std::get<4>(p.as_tuple()));
+	return Gene::ComparisonResult(*compared, *reference, std::get<1>(p.as_tuple()), std::get<2>(p.as_tuple()));
 }
 
 size_t Gene::invalid_nucleotides() const {
@@ -465,12 +460,10 @@ size_t Gene::invalid_nucleotides() const {
 
 Gene::ComparisonResult Gene::compare_to(const Gene& reference) const {
 	return ComparisonResult(
-		this,
-		&reference,
-		lev_edit_distance_int<int>(genome.data.data() + begin, end - begin, reference.genome.data.data() + reference.begin, reference.end - reference.begin),
-		lev_edit_distance_int<int>(protein.data(), protein.size(), reference.protein.data(), reference.protein.size()),
-		get_differences(reference.genome.data.data() + reference.begin, genome.data.data() + begin, std::min(end - begin, reference.end - reference.begin)),
-		get_differences(reference.protein.data(), protein.data(), std::min(protein.size(), reference.protein.size()))
+		*this,
+		reference,
+		*edit_distance_int(genome.data.data() + begin, end - begin, reference.genome.data.data() + reference.begin, reference.end - reference.begin),
+		*edit_distance_int(protein.data(), protein.size(), reference.protein.data(), reference.protein.size())
 	);
 }
 
