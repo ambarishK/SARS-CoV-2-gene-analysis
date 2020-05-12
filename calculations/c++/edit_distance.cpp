@@ -18,11 +18,11 @@ EditOperation python_loader<EditOperation>::load(std::istream& input) {
 }
 
 void print_as_python(std::ostream& o, const EditOperation::Type& t) {
-	print_as_python(o, static_cast<int>(t));
+	print_as_python(o, static_cast<char>(t));
 }
 
 EditOperation::Type python_loader<EditOperation::Type>::load(std::istream& input) {
-	return static_cast<EditOperation::Type>(python_loader<int>::load(input));
+	return static_cast<EditOperation::Type>(python_loader<char>::load(input));
 }
 
 EditOperation::EditOperation(uint16_t position, char arg, Type type) : position(position), arg(arg), type(type) {}

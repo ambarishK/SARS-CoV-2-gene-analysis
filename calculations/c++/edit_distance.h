@@ -11,9 +11,9 @@
 
 struct EditOperation {
 	enum class Type : char {
-		DELETE = 1,
-		INSERT = 2,
-		SUBSTITUTE = 3
+		DELETE = 'd',
+		INSERT = 'i',
+		SUBSTITUTE = 's'
 	};
 	uint16_t position;
 	char arg;
