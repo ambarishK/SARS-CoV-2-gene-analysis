@@ -2,6 +2,8 @@
 
 #include <cstring>
 #include <algorithm>
+#include <map>
+#include <set>
 
 using namespace std::string_literals;
 
@@ -183,6 +185,61 @@ static std::vector<std::pair<std::pair<const CHAR_TYPE*, SIZE_TYPE>, std::pair<c
 	std::vector<std::pair<std::pair<const CHAR_TYPE*, SIZE_TYPE>, std::pair<const CHAR_TYPE*, SIZE_TYPE>>> breaks;
 	find_breaks_do(string1, len1, string2, len2, breaks);
 	return breaks;
+}
+
+
+static void assert_throw(bool a) {
+	if(!a) {
+		throw std::logic_error("Assertion failed.");
+	}
+}
+
+std::string rebuild(const std::vector<EditOperation>& eos, const char *string1, uint16_t len1) {
+	std::string str;
+	std::map<uint16_t, std::vector<EditOperation>> e;
+	for(const EditOperation& eo : eos) {
+		e[eo.position].push_back(eo);
+	}
+	std::set<uint16_t> deleted;
+	for(uint16_t i = 0; i < len1; ++i) {
+		if(e.count(i)) {
+			for(const EditOperation& eo: e.at(i)) {
+				switch(eo.type) {
+				case EditOperation::Type::DELETE:
+					assert_throw(string1[i] == eo.arg);
+					assert_throw(deleted.emplace(i).second);
+					break;
+				case EditOperation::Type::SUBSTITUTE:
+					assert_throw(deleted.emplace(i).second);
+					// fall-through
+				case EditOperation::Type::INSERT:
+					str += eo.arg;
+					break;
+				default:
+					assert_throw(false);
+				}
+			}
+		}
+		if(deleted.count(i) == 0) {
+			str += string1[i];
+		}
+	}
+	if(e.count(len1)) {
+		for(const EditOperation& eo: e.at(len1)) {
+			switch(eo.type) {
+			case EditOperation::Type::INSERT:
+				str += eo.arg;
+				break;
+			case EditOperation::Type::DELETE:
+				// fall-through
+			case EditOperation::Type::SUBSTITUTE:
+				// fall-through
+			default:
+				assert_throw(false);
+			}
+		}
+	}
+	return str;
 }
 
 std::optional<std::vector<EditOperation>> edit_distance_int(const char *string1, uint16_t len1, const char *string2, uint16_t len2, uint16_t limit) {
