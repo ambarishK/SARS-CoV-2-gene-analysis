@@ -1,5 +1,6 @@
 import Levenshtein
 from calculations.python.paths import *
+from multiprocessing import Pool, cpu_count, Value
 
 class CovidTest:
     def __init__(self, gene: str, country: str, F: str, P: str, R: str) -> None:
@@ -48,7 +49,7 @@ class CovidTest:
     def __repr__(self):
         return str(self.__dict__)
 
-def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, reference_begin: {str: int}, neighbourhood_radius: int=25, max_diff: float=0.2) -> {str: int}:
+def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, reference_begin: {str: int}, neighbourhood_radius: int=10, max_diff: float=0.6) -> {str: int}:
     result = {}
     prev = -1
     for part in reference_begin:
@@ -83,20 +84,61 @@ def find_tests(genome: str, tests: [CovidTest], reference: str, tests_in_referen
         result.append(find_covid_test_in_genome(test, genome, reference, ref))
     return result
 
+def tests_to_print(header: str, tests_results: [{str: int}], tests: [CovidTest]):
+    return {"header": header, "tests": [{"name": test.gene + "_" + test.country + "_" + part, "begin": result[part], "end": result[part] + len(getattr(test, part))} for result, test in zip(tests_results, tests) for part in result]}
+
+def load_genomes():
+    genomes = []
+    with open(data_path(FILTERED_GENOMES), 'r') as file:
+        next(file)
+        header = None
+        contents = ''
+        for line in file:
+            if line.startswith(">"):
+                if header is not None:
+                    genomes.append((header, contents))
+                contents = ''
+                header = line[:-1]
+                continue
+            else:
+                contents += line.rstrip()
+        genomes.append((header, contents))
+    return genomes
+
 tests = CovidTest.parse(data_path("primers_public-3.fas"))
 
 with open(data_path(REFERENCE_GENOME), 'r') as file:
     reference = ''.join(file.read().split()[1:])
 tests_in_reference = [find_covid_test_in_reference(test, reference) for test in tests]
 
-with open(data_path(FILTERED_GENOMES), 'r') as file:
-    next(file)
-    contents = ''
-    for line in file:
-        if line.startswith(">"):
-            print(find_tests(contents, tests, reference, tests_in_reference))
-            contents = ''
-            continue
-        else:
-            contents += line.rstrip()
-    print(find_tests(contents, tests, reference, tests_in_reference))
+genomes = load_genomes()
+print(f"{len(genomes)} genomes loaded.", flush=True)
+
+counter = None
+
+def init(arg):
+    global counter
+    counter = arg
+
+def perform_tests(genome):
+    header, contents = genome
+    global counter
+    r = (header, find_tests(contents, tests, reference, tests_in_reference))
+    with counter.get_lock():
+        counter.value += 1
+        c = counter.value
+    if int(c * 100 / len(genomes)) != int((c + 1) * 100 / len(genomes)):
+        print(str(int((c + 1) * 100 / len(genomes))) + "%", flush=True)
+    return r
+
+try:
+    pool = Pool(cpu_count(), initializer=init, initargs=(Value('i', 0),))
+    result = pool.map(perform_tests, genomes)
+finally:
+    pool.close()
+    pool.join()
+
+with open(data_path(TESTS_RESULTS), 'w') as file:
+    print(len(genomes), file=file)
+    for header, test_results in result:
+        print(tests_to_print(header, test_results, tests), file=file)

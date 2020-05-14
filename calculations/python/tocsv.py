@@ -27,8 +27,9 @@ def distances_tocsv(file=data_path(EXTRA_COMPARISONS_RESULTS), output_file=data_
 
             else:
                 temp_dict = eval(line)
+                compare_to_ref = False
 
-            temp_dict2 = {gene['name'] + '_' + k: gene[k] for gene in temp_dict['genes'] for k in gene if k != 'name'}
+            temp_dict2 = {gene['name'] + '_' + k: gene[k] for gene in temp_dict['genes' if 'genes' in temp_dict else 'tests'] for k in gene if k != 'name'}
             if compare_to_ref:
                 temp_dict_ref_2 = {gene['name'] + '_' + k: gene[k] for gene in temp_dict_ref['genes'] for k in gene if
                                    k != 'name'}
@@ -37,7 +38,7 @@ def distances_tocsv(file=data_path(EXTRA_COMPARISONS_RESULTS), output_file=data_
                 temp_dict2['compared'] = temp_dict_ref['compared']
                 temp_dict2['distance'] = temp_dict_ref['distance']
                 temp_dict2['date'] = temp_dict_ref['compared'].split('|')[2]
-            del temp_dict['genes']
+            del temp_dict['genes' if 'genes' in temp_dict else 'tests']
             for k, v in temp_dict.items():
                 temp_dict2[k] = v
             data_list.append(temp_dict2)
