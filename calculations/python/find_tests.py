@@ -2,13 +2,22 @@ import Levenshtein
 from calculations.python.paths import *
 from multiprocessing import Pool, cpu_count, Value
 
+def complementary(sequence: str) -> str:
+    sequence = sequence.replace('A','X')
+    sequence = sequence.replace('T','A')
+    sequence = sequence.replace('X','T')
+    sequence = sequence.replace('C', 'X')
+    sequence = sequence.replace('G', 'C')
+    sequence = sequence.replace('X', 'G')
+    return sequence[::-1]
+
 class CovidTest:
     def __init__(self, gene: str, country: str, F: str, P: str, R: str) -> None:
         self.gene = gene
         self.country = country
         self.F = F
         self.P = P
-        self.R = R
+        self.R = complementary(R)
     @staticmethod
     def parse(filename: str) -> ['CovidTest']:
         with open(filename, 'r') as file:
@@ -49,9 +58,10 @@ class CovidTest:
     def __repr__(self):
         return str(self.__dict__)
 
-def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, reference_begin: {str: int}, neighbourhood_radius: int=10, max_diff: float=0.6) -> {str: int}:
+def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, reference_begin: {str: int}, neighbourhood_radius: int=10) -> ({str: int}, float):
     result = {}
     prev = -1
+    max_diff = 0.0
     for part in reference_begin:
         test_part = getattr(test, part)
         reference_pre = reference[max(0, reference_begin[part] - neighbourhood_radius): reference_begin[part]]
@@ -61,9 +71,8 @@ def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, refe
         prev = begin
         result[part] = begin
         distance = Levenshtein.distance(genome[max(0, begin - neighbourhood_radius): begin+len(test_part)+neighbourhood_radius], test_data)
-        if distance > max_diff * len(test_data):
-            raise ValueError(f"Difference {distance} too big compared to length {len(test_data)} {test} part {part}")
-    return result
+        max_diff = max(max_diff, distance / len(test_data))
+    return result, max_diff
 
 def find_covid_test_in_reference(test: CovidTest, reference: str) -> {str: int}:
     result = {}
@@ -78,11 +87,14 @@ def find_covid_test_in_reference(test: CovidTest, reference: str) -> {str: int}:
             raise ValueError(f"Incorrect test {test} part {part} prev {prev} begin {begin}")
     return result
 
-def find_tests(genome: str, tests: [CovidTest], reference: str, tests_in_reference: [{str: int}]) -> [{str: int}]:
+def find_tests(genome: str, tests: [CovidTest], reference: str, tests_in_reference: [{str: int}]) -> ([{str: int}], float):
     result = []
+    max_max_diff = 0.0
     for test, ref in zip(tests, tests_in_reference):
-        result.append(find_covid_test_in_genome(test, genome, reference, ref))
-    return result
+        test_result, max_diff = find_covid_test_in_genome(test, genome, reference, ref)
+        max_max_diff = max(max_diff, max_max_diff)
+        result.append(test_result)
+    return result, max_max_diff
 
 def tests_to_print(header: str, tests_results: [{str: int}], tests: [CovidTest]):
     return {"header": header, "tests": [{"name": test.gene + "_" + test.country + "_" + part, "begin": result[part], "end": result[part] + len(getattr(test, part))} for result, test in zip(tests_results, tests) for part in result]}
@@ -105,7 +117,7 @@ def load_genomes():
         genomes.append((header, contents))
     return genomes
 
-tests = CovidTest.parse(data_path("primers_public-3.fas"))
+tests = CovidTest.parse(data_path("primers_public.fas"))
 
 with open(data_path(REFERENCE_GENOME), 'r') as file:
     reference = ''.join(file.read().split()[1:])
@@ -115,24 +127,32 @@ genomes = load_genomes()
 print(f"{len(genomes)} genomes loaded.", flush=True)
 
 counter = None
+max_max_diff = None
+total = len(genomes)
 
-def init(arg):
+def init(c, m):
     global counter
-    counter = arg
+    counter = c
+    global max_max_diff
+    max_max_diff = m
 
 def perform_tests(genome):
     header, contents = genome
     global counter
-    r = (header, find_tests(contents, tests, reference, tests_in_reference))
+    global max_max_diff
+    global total
+    r, max_diff = find_tests(contents, tests, reference, tests_in_reference)
+    with max_max_diff.get_lock():
+        max_max_diff.value = max(max_diff, max_max_diff.value)
     with counter.get_lock():
         counter.value += 1
         c = counter.value
-    if int(c * 100 / len(genomes)) != int((c + 1) * 100 / len(genomes)):
-        print(str(int((c + 1) * 100 / len(genomes))) + "%", flush=True)
-    return r
+    if c * 100 // len(genomes) != (c - 1) * 100 // len(genomes):
+        print(f"{c  * 100 // len(genomes)}% Max diff: {max_max_diff.value}", flush=True)
+    return header, r
 
 try:
-    pool = Pool(cpu_count(), initializer=init, initargs=(Value('i', 0),))
+    pool = Pool(cpu_count(), initializer=init, initargs=(Value('i', 0), Value('d', 0)))
     result = pool.map(perform_tests, genomes)
 finally:
     pool.close()
