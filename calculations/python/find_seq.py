@@ -11,6 +11,7 @@ def location(str, substr):
 
 def find_boundaries(genome, sequence):
     start = 0
+
     if len(genome.split(sequence)) == 2:
         start, end = location(genome, sequence)
 
@@ -24,25 +25,34 @@ def find_boundaries(genome, sequence):
                 temp_min = Levenshtein.distance(sequence, genome[i:i + len(sequence)])
                 temp_start = i
         start = temp_start
-        print(genome[start:start + len(sequence)])
+
 
         genome = genome.split(genome[start:start + len(sequence)])[0] + sequence + \
                      genome.split(genome[start:start + len(sequence)])[1]
 
-        print(sequence)
+        print(temp_min)
+
     return (start, start + len(sequence)), genome
 
 
 ref_genome = ''
-with open('./ReferenceGenes/primers_reference_genome.fasta', 'r') as ref_genome_file:
+with open('../../data/reference/REFERENCE_GENOME.fasta', 'r') as ref_genome_file:
     for line in ref_genome_file:
         if not (line.startswith('>')):
             ref_genome += line.rstrip()
 
 
+def complementary(sequence):
+    sequence=sequence.replace('A','X')
+    sequence=sequence.replace('T','A')
+    sequence=sequence.replace('X','T')
+    sequence=sequence.replace('C', 'X')
+    sequence=sequence.replace('G', 'C')
+    sequence=sequence.replace('X', 'G')
+    return  sequence
+print(complementary('AAA'))
 
-
-with open('./ReferenceGenes/primers_public.fas', 'r') as ref_primers_file, open('./ReferenceGenes/primers.txt', 'w') as primers_txt, open('./ReferenceGenes/primers_reference_genome.fasta', 'w') as new_genome_file:
+with open('../../data/primers_public.fas', 'r') as ref_primers_file, open('../../data/primers.txt', 'w') as primers_txt, open('../../data/x.fasta', 'w') as new_genome_file:
     names = list()
     primers = list()
     for line in ref_primers_file:
@@ -53,9 +63,40 @@ with open('./ReferenceGenes/primers_public.fas', 'r') as ref_primers_file, open(
     primers = dict(zip(names, primers))
     primers_locations = dict()
     for primer_name in primers:
-        print(primer_name)
-        primers_locations[primer_name], ref_genome = find_boundaries(ref_genome, primers[primer_name])
+
+        if '_R' in primer_name:
+
+            primers_locations[primer_name], ref_genome = find_boundaries(ref_genome, complementary(primers[primer_name][::-1]))
+            # print('complementary')
+            # find_boundaries(ref_genome, complementary(primers[primer_name]))
+            # print('reverse')
+            # find_boundaries(ref_genome, (primers[primer_name][::-1]))
+            # print('normal')
+            #find_boundaries(ref_genome, primers[primer_name])
+        elif '_P' in primer_name:
+            # print(primer_name)
+            # print('complementary,reverse')
+            # primers_locations[primer_name], ref_genome = find_boundaries(ref_genome,
+            #                                                 complementary(primers[primer_name][::-1]))
+            # print('complementary')
+            # find_boundaries(ref_genome, complementary(primers[primer_name]))
+            # print('reverse')
+            # find_boundaries(ref_genome, (primers[primer_name][::-1]))
+            print(primer_name)
+            primers_locations[primer_name], ref_genome = find_boundaries(ref_genome, primers[primer_name])
+
+        elif '_F' in primer_name:
+
+            primers_locations[primer_name], ref_genome = find_boundaries(ref_genome, primers[primer_name])
+
+    print(primers_locations)
     find_boundaries(ref_genome, 'ATATTGCAGCAGTACGCACACA')
+    for keys in primers_locations:
+        splt = keys.split('_')
+        test = splt[0] +'_' + splt[1]
+        if primers_locations[test+'_F'][0] < primers_locations[test+'_P'][0] and primers_locations[test+'_P'][0] < primers_locations[test+'_R'][0]:
+            print('ok')
+        else:print(test)
     for item in primers_locations:
 
         primers_txt.write(
