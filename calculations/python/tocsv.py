@@ -7,16 +7,12 @@ from calculations.python.paths import *
 
 def distances_tocsv(file=data_path(EXTRA_COMPARISONS_RESULTS), output_file=data_path(COMPARISONS_CSV),
                     compare_to_ref=False):
-    with open(file, 'r') as file:
-        data_list = []
-
+    if compare_to_ref:
+        output_file = data_path('genome_data.csv')
+    with open(file, 'r') as file, open(output_file, 'w') as csvfile:
         next(file)
-
         counter = 0
         for line in file:
-            if type(eval(line)) == int:
-                pass
-
             counter += 1
 
             if type(eval(line)) == type(()):
@@ -41,15 +37,10 @@ def distances_tocsv(file=data_path(EXTRA_COMPARISONS_RESULTS), output_file=data_
             del temp_dict['genes' if 'genes' in temp_dict else 'tests']
             for k, v in temp_dict.items():
                 temp_dict2[k] = v
-            data_list.append(temp_dict2)
-        csv_columns = data_list[0].keys()
-        if compare_to_ref:
-            output_file = '../../data/genome_data.csv'
-        with open(output_file, 'w') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
-            writer.writeheader()
-            for data in data_list:
-                writer.writerow(data)
+            if counter == 1:
+                writer = csv.DictWriter(csvfile, fieldnames=temp_dict2.keys())
+                writer.writeheader()
+            writer.writerow(temp_dict2)
     # df = pd.read_csv(output_file)
 
 
