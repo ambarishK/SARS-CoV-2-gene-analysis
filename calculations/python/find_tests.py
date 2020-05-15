@@ -58,7 +58,31 @@ class CovidTest:
     def __repr__(self):
         return str(self.__dict__)
 
-def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, reference_begin: {str: int}, neighbourhood_radius: int=10) -> ({str: int}, float):
+class EditOperation:
+    def __init__(self, position: int, arg: str, type: str):
+        self.position = position
+        self.arg = arg
+        self.type = type
+    def __repr__(self) -> str:
+        return repr({"position": self.position, "arg": self.arg, "type": self.type})
+    def __str__(self) -> str:
+        return repr(self)
+
+class CovidTestPartResult:
+    def __init__(self, begin: int, end: int, mutations: [EditOperation]):
+        self.begin = begin
+        self.end = end
+        self.mutations = mutations
+    def __repr__(self) -> str:
+        return repr({"begin": self.begin, "end": self.end, "mutations": self.mutations})
+    def __str__(self) -> str:
+        return repr(self)
+
+def get_edit_operations(a: str, b: str) -> [EditOperation]:
+    editops = Levenshtein.editops(a, b)
+    return [EditOperation(spos, b[dpos] if op == "replace" or op == "insert" else a[spos], {"replace": "s", "delete": "d", "insert": "i"}[op]) for op, spos, dpos in editops]
+
+def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, reference_begin: {str: int}, neighbourhood_radius: int=10) -> ({str: CovidTestPartResult}, float):
     result = {}
     prev = -1
     max_diff = 0.0
@@ -69,9 +93,9 @@ def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, refe
         test_data = reference_pre + test_part + reference_post
         begin = min(range(prev, len(genome)), key=lambda x: Levenshtein.distance(genome[max(0, x - neighbourhood_radius): x+len(test_part)+neighbourhood_radius], test_data))
         prev = begin
-        result[part] = begin
         distance = Levenshtein.distance(genome[max(0, begin - neighbourhood_radius): begin+len(test_part)+neighbourhood_radius], test_data)
         max_diff = max(max_diff, distance / len(test_data))
+        result[part] = CovidTestPartResult(begin, begin + len(test_part), get_edit_operations(genome[begin: begin+len(test_part)], test_part))
     return result, max_diff
 
 def find_covid_test_in_reference(test: CovidTest, reference: str) -> {str: int}:
@@ -87,7 +111,7 @@ def find_covid_test_in_reference(test: CovidTest, reference: str) -> {str: int}:
             raise ValueError(f"Incorrect test {test} part {part} prev {prev} begin {begin}")
     return result
 
-def find_tests(genome: str, tests: [CovidTest], reference: str, tests_in_reference: [{str: int}]) -> ([{str: int}], float):
+def find_tests(genome: str, tests: [CovidTest], reference: str, tests_in_reference: [{str: int}]) -> ({str: CovidTestPartResult}, float):
     result = []
     max_max_diff = 0.0
     for test, ref in zip(tests, tests_in_reference):
@@ -96,8 +120,8 @@ def find_tests(genome: str, tests: [CovidTest], reference: str, tests_in_referen
         result.append(test_result)
     return result, max_max_diff
 
-def tests_to_print(header: str, tests_results: [{str: int}], tests: [CovidTest]):
-    return {"header": header, "tests": [{"name": test.gene + "_" + test.country + "_" + part, "begin": result[part], "end": result[part] + len(getattr(test, part))} for result, test in zip(tests_results, tests) for part in result]}
+def tests_to_print(header: str, tests_results: [{str: CovidTestPartResult}], tests: [CovidTest]):
+    return {"header": header, "tests": [{"name": test.gene + "_" + test.country + "_" + part, "begin": result[part].begin, "end": result[part].end, "mutations": result[part].mutations} for result, test in zip(tests_results, tests) for part in result]}
 
 def load_genomes():
     genomes = []
@@ -127,32 +151,31 @@ genomes = load_genomes()
 print(f"{len(genomes)} genomes loaded.", flush=True)
 
 counter = None
-max_max_diff = None
 total = len(genomes)
 
-def init(c, m):
+def init(c):
     global counter
     counter = c
-    global max_max_diff
-    max_max_diff = m
 
-def perform_tests(genome):
+max_diffs = []
+
+def perform_tests(genome: (str, str)) -> (str, {str: CovidTestPartResult}):
     header, contents = genome
     global counter
-    global max_max_diff
+    global max_diffs
     global total
     r, max_diff = find_tests(contents, tests, reference, tests_in_reference)
-    with max_max_diff.get_lock():
-        max_max_diff.value = max(max_diff, max_max_diff.value)
+    max_diffs.append(max_diff)
     with counter.get_lock():
         counter.value += 1
         c = counter.value
     if c * 100 // len(genomes) != (c - 1) * 100 // len(genomes):
-        print(f"{c  * 100 // len(genomes)}% Max diff: {max_max_diff.value}", flush=True)
+        print(f"{c  * 100 // len(genomes)}% Average max diff: {sum(max_diffs) / len(max_diffs)}", flush=True)
+        max_diffs = []
     return header, r
 
 try:
-    pool = Pool(cpu_count(), initializer=init, initargs=(Value('i', 0), Value('d', 0)))
+    pool = Pool(cpu_count(), initializer=init, initargs=(Value('i', 0),))
     result = pool.map(perform_tests, genomes)
 finally:
     pool.close()
