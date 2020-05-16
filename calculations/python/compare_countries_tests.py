@@ -35,7 +35,7 @@ def create_hist():
                         values[m["position"]] += 1
                     else:
                         values[m["position"]] = 0
-            hist_dict[primer_name + "/" + country] = [values[i] if i in values else 0 for i in range(len(primers[primer_name]))]
+            hist_dict[primer_name + "/" + country] = [values[i] / len(rows) if i in values else 0 for i in range(len(primers[primer_name]))]
     return hist_dict
 
 hist_dict = create_hist()
