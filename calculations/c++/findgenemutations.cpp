@@ -462,8 +462,8 @@ Gene::ComparisonResult Gene::compare_to(const Gene& reference) const {
 	return ComparisonResult(
 		*this,
 		reference,
-		*edit_distance_int(genome.data.data() + begin, end - begin, reference.genome.data.data() + reference.begin, reference.end - reference.begin),
-		*edit_distance_int(protein.data(), protein.size(), reference.protein.data(), reference.protein.size())
+		*edit_distance_int(reference.genome.data.data() + reference.begin, reference.end - reference.begin, genome.data.data() + begin, end - begin),
+		*edit_distance_int(reference.protein.data(), reference.protein.size(), protein.data(), protein.size())
 	);
 }
 
