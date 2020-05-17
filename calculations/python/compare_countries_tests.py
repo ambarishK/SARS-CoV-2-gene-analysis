@@ -26,6 +26,7 @@ primers = get_primers()
 
 def create_hist():
     hist_dict = {}
+    hist_dict2 = {}
     for country, rows in pcr_data.groupby(['country']):
         for primer_name in primers:
             values = {}
@@ -35,10 +36,15 @@ def create_hist():
                         values[m["position"]] += 1
                     else:
                         values[m["position"]] = 0
-            hist_dict[primer_name + "/" + country] = [values[i] / len(rows) if i in values else 0 for i in range(len(primers[primer_name]))]
-    return hist_dict
+            hist_dict[primer_name + "/" + country] = [values[i] / len(rows) if i in values else 0 for i in range(len(primers[primer_name])-5,len(primers[primer_name]))]
+            hist_dict2[primer_name + "/" + country] = [values[i] if i in values else 0 for i in range(len(primers[primer_name])-5,len(primers[primer_name]))]
+    return hist_dict, hist_dict2
 
-hist_dict = create_hist()
+hist_dict, for_df = create_hist()
+hist_df = pd.DataFrame(for_df)
+
+import matplotlib.pyplot as plt
+
 
 def create_differences():
     differences = {}
@@ -56,7 +62,31 @@ def create_differences():
     return differences
 
 differences = create_differences()
-
 top_differences = dict(sorted(differences.items(), key=operator.itemgetter(1), reverse=True)[:TOP_RESULTS])
-
 print(top_differences)
+#
+# print(hist_df['RdRp_HongKong_R/England'])#['RdRP_HongKong_R/England'])
+# temp_data = hist_df['RdRp_HongKong_R/England'].to_list()
+# plt.hist(temp_data)
+# plt.show()
+plt.style.use('ggplot')
+def hist_comparison(data, country1, country2):
+    plt.subplot(1, 2, 1)
+    temp_data = data[country1].to_list()
+    axis = [i for i in range(len(hist_df[country1].to_list()))]
+    plt.bar(axis, temp_data)
+    plt.title(country1)
+    plt.subplot(1, 2, 2)
+    temp_data = data[country2].to_list()
+    axis = [i for i in range(len(hist_df[country1].to_list()))]
+    plt.bar(axis,temp_data)
+    plt.title(country2)
+    plt.tight_layout()
+    plt.show()
+# a=0
+# for x in top_differences:
+#     if 'RdRp_HongKong_F' in x.split('.')[0] and 'RdRp_HongKong_F' in x.split('.')[1]:
+#         hist_comparison(hist_df,x.split('.')[0], x.split('.')[1])
+#         a+=1
+#         if a==10:
+#             break
