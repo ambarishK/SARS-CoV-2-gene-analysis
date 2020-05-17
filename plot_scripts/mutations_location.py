@@ -19,15 +19,15 @@ DF = pd.read_csv(data_path('distances.csv'))
 DF['date'] = pd.to_datetime(DF['date'])  # converting data column to data type
 
 DF['country'] = DF['header'].apply(lambda x: str(x).split('/')[-3])
-'''
-for x in DF:
-    if x != 'country' and x != 'header':
-        DF.drop(x, axis=1, inplace=True)
-
-df = DF.groupby(by='country').count()
-df.sort_values(by='header', ascending=False, inplace=True)
-print(df.head(30))
-'''
+# '''
+# for x in DF:
+#     if x != 'country' and x != 'header':
+#         DF.drop(x, axis=1, inplace=True)
+#
+# df = DF.groupby(by='country').count()
+# df.sort_values(by='header', ascending=False, inplace=True)
+# print(df.head(30))
+# '''
 
 # print(len(DF))
 # DF.sort_values(by='date', ascending=False, inplace=True)
@@ -102,13 +102,17 @@ def make_histogram_dict(l):
 def histogram_dict_to_list(d: {int: int}, length=None):
     return [d[i] if i in d else 0 for i in range(length)]
 
-hist_dict = {gene: histogram_dict_to_list(make_histogram_dict((g['position'] for g in get_mutations(gene))), max(abs(DF[gene + "_end"] - DF[gene + "_begin"])) + 1) for gene in genes}
+def calc_hist():
+    hist_dict = {gene: histogram_dict_to_list(make_histogram_dict((g['position'] for g in get_mutations(gene))), max(abs(DF[gene + "_end"] - DF[gene + "_begin"])) + 1) for gene in genes}
+    return hist_dict
+
+# save_dict(hist_dict, 'dict_mut.txt')
 
 mut = []
 trans = []
-for x in genes:
-    mut.append(x + '_mutations')
-    trans.append(x + '_translation_changes')
+# for x in genes:
+#     mut.append(x + '_mutations')
+#     trans.append(x + '_translation_changes')
 
 
 # mut = ['E_gene_mutations', 'M_gene_mutations', 'S_gene_mutations', 'N_gene_mutations', 'orf1ab_mutations', 'ORF3a_mutations',
@@ -153,33 +157,33 @@ def get_lists_colorbar():
     return lists
 
 
-def llwrite(list, filename='mutation_density.pg'):
-    with open(filename, 'w') as f:
-        for _list in list:
-            f.write('#' + '\n')
-            for inty in _list:
-                f.write(str(inty) + '\n')
-    print('File saved as ' + filename)
+# def llwrite(list, filename='mutation_density.pg'):
+#     with open(filename, 'w') as f:
+#         for _list in list:
+#             f.write('#' + '\n')
+#             for inty in _list:
+#                 f.write(str(inty) + '\n')
+#     print('File saved as ' + filename)
 
 
 # llwrite(get_lists_colorbar(), 'mutation_density22test.pg')
 
 
-def llread(filename='mutation_density4.pg'):
-    with open(filename, 'r') as f:
-        result = []
-        i = 0
-        for line in f:
-            if line == '#\n':
-                if i == 0:
-                    i += 1
-                else:
-                    result.append(a)
-                a = []
-            else:
-                a.append(int(line[:-1]))
-        result.append(a)
-        return result
+# def llread(filename='mutation_density4.pg'):
+#     with open(filename, 'r') as f:
+#         result = []
+#         i = 0
+#         for line in f:
+#             if line == '#\n':
+#                 if i == 0:
+#                     i += 1
+#                 else:
+#                     result.append(a)
+#                 a = []
+#             else:
+#                 a.append(int(line[:-1]))
+#         result.append(a)
+#         return result
 
 
 def del_zscore(list, zscore=20):
@@ -245,14 +249,14 @@ def icolorbar(gene):
 #     icolorbar(i)
 
 
-def icolorbar2(file= 'mutation_density.pg'):
+def icolorbar2(mut_dict):
     import plotly.graph_objects as go
     import plotly.express as px
-    data = llread(file)
+    # data = llread(file)
     fig = go.Figure()
     i=0
-    for gene in genes:
-        data1 = [data[i]]
+    for gene in mut_dict:
+        data1 = [del_zscore(mut_dict[gene], 10)]
         gname = gene.replace('_', ' ')
         fig.add_trace(
             px.imshow(data1, labels=dict(x="Length of " + gname, color="No. of mutations")).data[0])
@@ -261,7 +265,7 @@ def icolorbar2(file= 'mutation_density.pg'):
     def get_buttons():
         result=[]
         i=0
-        for gene in genes:
+        for gene in mut_dict:
             ltest = [False]*len(genes)
             ltestt = ltest
             ltestt[i] = True
@@ -281,14 +285,21 @@ def icolorbar2(file= 'mutation_density.pg'):
 
     fig.update_traces(hovertemplate='Place in gene: %{x} <br>No. of mutations: %{z} <extra></extra>')
     name = 'div_density_chart_allgenes.html'
+    fig.update_yaxes(showticklabels=False)
     fig.write_html('' + name, full_html=False, include_plotlyjs='cdn')
     print('File saved in directory plots/html/ as ' + name)
 
     fig.show()
 
 
-# icolorbar2('mutation_density11.pg')
+# icolorbar2(read_dict('dict_mut.txt', 'list'))
 
+
+# a = read_dict('dict_mut.txt', 'list')
+#
+# for x in a:
+#     print(x)
+#     print(max(a[x]))
 
 def colorbar1(gene):
     i = 0
