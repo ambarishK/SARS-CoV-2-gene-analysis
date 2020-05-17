@@ -134,7 +134,7 @@ def load_genomes():
                 if header is not None:
                     genomes.append((header, contents))
                 contents = ''
-                header = line[:-1]
+                header = line.rstrip()
                 continue
             else:
                 contents += line.rstrip()
