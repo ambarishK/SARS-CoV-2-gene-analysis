@@ -10,6 +10,7 @@ EXTRA_COMPARISONS_RESULTS="extra_comparisons_results.txt"
 DISTANCES_CSV="distances.csv"
 COMPARISONS_CSV="comparisons.csv"
 MERGED_CSV="genome_neigh.csv"
+TESTS_RESULTS="tests_results.txt"
 
 import os
 

@@ -7,16 +7,12 @@ from calculations.python.paths import *
 
 def distances_tocsv(file=data_path(EXTRA_COMPARISONS_RESULTS), output_file=data_path(COMPARISONS_CSV),
                     compare_to_ref=False):
-    with open(file, 'r') as file:
-        data_list = []
-
+    if compare_to_ref:
+        output_file = data_path('genome_data.csv')
+    with open(file, 'r') as file, open(output_file, 'w') as csvfile:
         next(file)
-
         counter = 0
         for line in file:
-            if type(eval(line)) == int:
-                pass
-
             counter += 1
 
             if type(eval(line)) == type(()):
@@ -27,8 +23,9 @@ def distances_tocsv(file=data_path(EXTRA_COMPARISONS_RESULTS), output_file=data_
 
             else:
                 temp_dict = eval(line)
+                compare_to_ref = False
 
-            temp_dict2 = {gene['name'] + '_' + k: gene[k] for gene in temp_dict['genes'] for k in gene if k != 'name'}
+            temp_dict2 = {gene['name'] + '_' + k: gene[k] for gene in temp_dict['genes' if 'genes' in temp_dict else 'tests'] for k in gene if k != 'name'}
             if compare_to_ref:
                 temp_dict_ref_2 = {gene['name'] + '_' + k: gene[k] for gene in temp_dict_ref['genes'] for k in gene if
                                    k != 'name'}
@@ -37,18 +34,13 @@ def distances_tocsv(file=data_path(EXTRA_COMPARISONS_RESULTS), output_file=data_
                 temp_dict2['compared'] = temp_dict_ref['compared']
                 temp_dict2['distance'] = temp_dict_ref['distance']
                 temp_dict2['date'] = temp_dict_ref['compared'].split('|')[2]
-            del temp_dict['genes']
+            del temp_dict['genes' if 'genes' in temp_dict else 'tests']
             for k, v in temp_dict.items():
                 temp_dict2[k] = v
-            data_list.append(temp_dict2)
-        csv_columns = data_list[0].keys()
-        if compare_to_ref:
-            output_file = '../../data/genome_data.csv'
-        with open(output_file, 'w') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
-            writer.writeheader()
-            for data in data_list:
-                writer.writerow(data)
+            if counter == 1:
+                writer = csv.DictWriter(csvfile, fieldnames=temp_dict2.keys())
+                writer.writeheader()
+            writer.writerow(temp_dict2)
     # df = pd.read_csv(output_file)
 
 
