@@ -4,11 +4,31 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 import statistics
+from calculations.python.paths import *
 
-pd.set_option("display.max_rows", None, "display.max_columns", None)
-DF = pd.read_csv('genome_neigh.csv')
+
+# pd.set_option("display.max_rows", None, "display.max_columns", None)
+
+# df = pd.read_csv('../../data/genome_data.csv')
+# print(df)
+# exit()
+# print(os.getcwd())
+# file= data_path(CALCULATED_GENOMES_DATA)
+# file = '../../data/genome_data.csv'
+DF = pd.read_csv('../data/distances.csv')
+# DF = pd.read_csv(file, escapechar='\\')
 DF['date'] = pd.to_datetime(DF['date'])  # converting data column to data type
 
+DF['country'] = DF['header'].apply(lambda x: str(x).split('/')[-3])
+for x in DF:
+    if x != 'country' and x != 'header':
+        DF.drop(x, axis=1, inplace=True)
+
+df = DF.groupby(by= 'country').count()
+df.sort_values(by= 'header', ascending=False, inplace=True)
+print(df.head(30))
+
+# print(len(DF))
 # DF.sort_values(by='date', ascending=False, inplace=True)
 # DF = DF.head((len(DF) - 6))  # deleting outlier data
 # print(len(DF))
@@ -105,8 +125,10 @@ def get_lists_colorbar():
                 print(genename)
                 print(m)
                 exit()
-            if len(location) != 0:
+            if (len(location) != 0):
                 for list in location:
+                    print(list)
+                    exit()
                     hist_data.append(list[0])
         new_list = change_format(hist_data)
         lists.append(new_list)
@@ -119,9 +141,10 @@ def llwrite(list, filename='mutation_density.pg'):
             f.write('#' + '\n')
             for inty in _list:
                 f.write(str(inty) + '\n')
+    print('File saved as ' + filename)
 
 
-# llwrite(get_lists_colorbar(),'mutation_density4.pg')
+# llwrite(get_lists_colorbar(), 'mutation_density22test.pg')
 
 
 def llread(filename='mutation_density4.pg'):
@@ -204,10 +227,10 @@ def icolorbar(gene):
 #     icolorbar(i)
 
 
-def icolorbar2():
+def icolorbar2(file= 'mutation_density.pg'):
     import plotly.graph_objects as go
     import plotly.express as px
-    data = llread()
+    data = llread(file)
     fig = go.Figure()
     i=0
     for gene in genes:
@@ -240,13 +263,13 @@ def icolorbar2():
 
     fig.update_traces(hovertemplate='Place in gene: %{x} <br>No. of mutations: %{z} <extra></extra>')
     name = 'div_density_chart_allgenes.html'
-    fig.write_html('./plots/html/' + name, full_html=False, include_plotlyjs='cdn')
+    fig.write_html('' + name, full_html=False, include_plotlyjs='cdn')
     print('File saved in directory plots/html/ as ' + name)
 
     fig.show()
 
 
-# icolorbar2()
+# icolorbar2('mutation_density11.pg')
 
 
 def colorbar1(gene):
