@@ -31,13 +31,11 @@ def entry_to_csv_dict(entry):
         for col in gene_columns:
             result[f"{gene}_{col}"] = genes_dict[gene][col]
         for col in gene_comparison_columns:
-            result[f"{gene}_{col}"] = [(mutation["position"], '?', mutation["arg"]) for mutation in genes_comparison_dict[gene][col]]
-        result[f"{gene}_distance"] = len(genes_comparison_dict[gene]["mutations"])
-        result[f"{gene}_protein_distance"] = len(genes_comparison_dict[gene]["protein_mutations"])
+            result[f"{gene}_{col}"] = genes_comparison_dict[gene][col]
     return result
 
 def get_csv_columns() -> [str]:
-    return [f"{gene}_{col}" for gene in genes for col in gene_columns] + [f"{gene}_{col}" for gene in genes for col in ["distance", "protein_distance"] + gene_comparison_columns] + comparison_columns + ["date"] + genome_columns
+    return [f"{gene}_{col}" for gene in genes for col in gene_columns] + [f"{gene}_{col}" for gene in genes for col in gene_comparison_columns] + comparison_columns + ["date"] + genome_columns
 
 with open(data_path(CALCULATED_GENOMES_DATA), 'r') as input, open(data_path(DISTANCES_CSV), 'w') as output:
     next(input)

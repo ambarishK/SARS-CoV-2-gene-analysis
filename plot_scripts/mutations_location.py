@@ -4,11 +4,32 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 import statistics
+from calculations.python.paths import *
 
-pd.set_option("display.max_rows", None, "display.max_columns", None)
-DF = pd.read_csv('genome_neigh.csv')
+# pd.set_option("display.max_rows", None, "display.max_columns", None)
+
+# df = pd.read_csv('../../data/genome_data.csv')
+# print(df)
+# exit()
+# print(os.getcwd())
+# file= data_path(CALCULATED_GENOMES_DATA)
+# file = '../../data/genome_data.csv'
+DF = pd.read_csv(data_path('distances.csv'))
+# DF = pd.read_csv(file, escapechar='\\')
 DF['date'] = pd.to_datetime(DF['date'])  # converting data column to data type
 
+DF['country'] = DF['header'].apply(lambda x: str(x).split('/')[-3])
+'''
+for x in DF:
+    if x != 'country' and x != 'header':
+        DF.drop(x, axis=1, inplace=True)
+
+df = DF.groupby(by='country').count()
+df.sort_values(by='header', ascending=False, inplace=True)
+print(df.head(30))
+'''
+
+# print(len(DF))
 # DF.sort_values(by='date', ascending=False, inplace=True)
 # DF = DF.head((len(DF) - 6))  # deleting outlier data
 # print(len(DF))
@@ -23,7 +44,6 @@ DF['date'] = pd.to_datetime(DF['date'])  # converting data column to data type
 #     if '_mutations' in  cols or '_changes' in cols:
 #         for sth in DF[cols]:
 #             sth = ast.literal_eval(sth)
-
 
 def change_format(list1):  # takes list and returns list counting how many there are 0s, 1s, 2s,... n's
     max_val = max(list1)
@@ -48,14 +68,12 @@ def read_dict(file, mode='normal'):
     with open(file, 'r') as f:
         while True:
             line1 = f.readline().rstrip()
+            line2 = f.readline().rstrip()
             if mode == 'list':  # if values in dict are lists
-                line2 = f.readline().rstrip()
                 if not line2:
                     break
                 else:
                     line2 = ast.literal_eval(line2)
-            else:
-                line2 = f.readline().rstrip()
             if not line1: break
             if not line2: break
             dic[line1] = line2
@@ -64,7 +82,27 @@ def read_dict(file, mode='normal'):
 
 # plt.style.use('ggplot')
 # fig, ax = plt.subplots(nrows=20,ncols=1, sharex=True, sharey=True)
-genes = ['E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10']
+genes = [column.split('_protein_mutations')[0] for column in DF.columns if column.endswith('_protein_mutations')]
+
+def get_mutations(gene: str):
+    return (mutation
+            for mutations, invalid_nucleotides in zip(DF[gene + '_mutations'], DF[gene + '_invalid_nucleotides'])
+            if invalid_nucleotides == 0
+            for mutation in ast.literal_eval(mutations))
+
+def make_histogram_dict(l):
+    values = {}
+    for el in l:
+        if el in values:
+            values[el] += 1
+        else:
+            values[el] = 1
+    return values
+
+def histogram_dict_to_list(d: {int: int}, length=None):
+    return [d[i] if i in d else 0 for i in range(length)]
+
+hist_dict = {gene: histogram_dict_to_list(make_histogram_dict((g['position'] for g in get_mutations(gene))), max(abs(DF[gene + "_end"] - DF[gene + "_begin"])) + 1) for gene in genes}
 
 mut = []
 trans = []
@@ -105,8 +143,10 @@ def get_lists_colorbar():
                 print(genename)
                 print(m)
                 exit()
-            if len(location) != 0:
+            if (len(location) != 0):
                 for list in location:
+                    print(list)
+                    exit()
                     hist_data.append(list[0])
         new_list = change_format(hist_data)
         lists.append(new_list)
@@ -119,9 +159,10 @@ def llwrite(list, filename='mutation_density.pg'):
             f.write('#' + '\n')
             for inty in _list:
                 f.write(str(inty) + '\n')
+    print('File saved as ' + filename)
 
 
-# llwrite(get_lists_colorbar(),'mutation_density4.pg')
+# llwrite(get_lists_colorbar(), 'mutation_density22test.pg')
 
 
 def llread(filename='mutation_density4.pg'):
@@ -204,10 +245,10 @@ def icolorbar(gene):
 #     icolorbar(i)
 
 
-def icolorbar2():
+def icolorbar2(file= 'mutation_density.pg'):
     import plotly.graph_objects as go
     import plotly.express as px
-    data = llread()
+    data = llread(file)
     fig = go.Figure()
     i=0
     for gene in genes:
@@ -240,13 +281,13 @@ def icolorbar2():
 
     fig.update_traces(hovertemplate='Place in gene: %{x} <br>No. of mutations: %{z} <extra></extra>')
     name = 'div_density_chart_allgenes.html'
-    fig.write_html('./plots/html/' + name, full_html=False, include_plotlyjs='cdn')
+    fig.write_html('' + name, full_html=False, include_plotlyjs='cdn')
     print('File saved in directory plots/html/ as ' + name)
 
     fig.show()
 
 
-# icolorbar2()
+# icolorbar2('mutation_density11.pg')
 
 
 def colorbar1(gene):
