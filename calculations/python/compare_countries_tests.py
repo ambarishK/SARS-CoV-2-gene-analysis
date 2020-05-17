@@ -3,6 +3,7 @@ import pandas as pd
 from calculations.python.paths import *
 from ast import literal_eval
 import itertools
+import matplotlib.pyplot as plt
 
 TOP_RESULTS = 20
 
@@ -24,9 +25,9 @@ def get_primers() -> {str: str}:
 
 primers = get_primers()
 
-def create_hist():
+def create_hist() -> ({str: [int]}, {str: [int]}):
+    hist_dict_normalized = {}
     hist_dict = {}
-    hist_dict2 = {}
     for country, rows in pcr_data.groupby(['country']):
         for primer_name in primers:
             values = {}
@@ -36,34 +37,27 @@ def create_hist():
                         values[m["position"]] += 1
                     else:
                         values[m["position"]] = 0
-            hist_dict[primer_name + "/" + country] = [values[i] / len(rows) if i in values else 0 for i in range(len(primers[primer_name])-5,len(primers[primer_name]))]
-            hist_dict2[primer_name + "/" + country] = [values[i] if i in values else 0 for i in range(len(primers[primer_name])-5,len(primers[primer_name]))]
-    return hist_dict, hist_dict2
+            hist_dict_normalized[primer_name + "/" + country] = [values[i] / len(rows) if i in values else 0 for i in range(len(primers[primer_name]))]
+            hist_dict[primer_name + "/" + country] = [values[i] if i in values else 0 for i in range(len(primers[primer_name]))]
+    return hist_dict_normalized, hist_dict
+
+def hist_to_suffixes(hist_dict: {str: [int]}, suffix_len: int=5) -> {str: [int]}:
+    return {k: v[-suffix_len:] for k, v in hist_dict.items()}
 
 hist_dict, for_df = create_hist()
-hist_df = pd.DataFrame(for_df)
+hist_dict = hist_to_suffixes(hist_dict)
+hist_df = pd.DataFrame(hist_to_suffixes(for_df))
 
-import matplotlib.pyplot as plt
-
-
-def create_differences():
+def create_differences(hist_dict: {str: [int]}) -> {str: int}:
     differences = {}
-    last_percent = 0
-    counter = 0
-    total = len(hist_dict) * (len(hist_dict) - 1) // 2
-    for first, second in itertools.combinations(hist_dict, 2):
-        counter += 1
-        if counter * 100 // total != last_percent:
-            last_percent = counter * 100 // total
-            print(f"{last_percent}%", flush=True)
-        hf = hist_dict[first]
-        hs = hist_dict[second]
-        differences[first + "." + second] = sum((abs(a - b) for a, b in zip(hf, hs))) + sum(hf[len(hs):]) + sum(hs[len(hf):])
+    for test in primers:
+        for country1, country2 in itertools.combinations(pcr_data['country'].unique(), 2):
+            differences[f"{test}/{country1}.{test}/{country2}"] = sum((abs(a - b) for a, b in zip(hist_dict[f"{test}/{country1}"], hist_dict[f"{test}/{country2}"])))
     return differences
 
-differences = create_differences()
+differences = create_differences(hist_dict)
 top_differences = dict(sorted(differences.items(), key=operator.itemgetter(1), reverse=True)[:TOP_RESULTS])
-print(top_differences)
+
 #
 # print(hist_df['RdRp_HongKong_R/England'])#['RdRP_HongKong_R/England'])
 # temp_data = hist_df['RdRp_HongKong_R/England'].to_list()
