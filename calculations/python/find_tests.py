@@ -1,6 +1,7 @@
 import Levenshtein
 from calculations.python.paths import *
 from multiprocessing import Pool, cpu_count, Value
+import buttplug
 
 def complementary(sequence: str) -> str:
     sequence = sequence.replace('A','X')
@@ -69,18 +70,23 @@ class EditOperation:
         return repr(self)
 
 class CovidTestPartResult:
-    def __init__(self, begin: int, end: int, mutations: [EditOperation]):
+    def __init__(self, begin: int, end: int, mutations: [EditOperation], relaxed_mutations: [EditOperation]):
         self.begin = begin
         self.end = end
         self.mutations = mutations
+        self.relaxed_mutations = relaxed_mutations
     def __repr__(self) -> str:
         return repr({"begin": self.begin, "end": self.end, "mutations": self.mutations})
     def __str__(self) -> str:
         return repr(self)
 
-def get_edit_operations(a: str, b: str) -> [EditOperation]:
-    editops = Levenshtein.editops(a, b)
-    return [EditOperation(spos, b[dpos] if op == "replace" or op == "insert" else a[spos], {"replace": "s", "delete": "d", "insert": "i"}[op]) for op, spos, dpos in editops]
+def get_edit_operations(a: str, b: str, relaxed: bool=False) -> [EditOperation]:
+    if relaxed:
+        editops = buttplug.mutations(a, b, True)
+        return [EditOperation(op["position"], op["arg"], op["type"]) for op in editops]
+    else:
+        editops = Levenshtein.editops(a, b)
+        return [EditOperation(spos, b[dpos] if op == "replace" or op == "insert" else a[spos], {"replace": "s", "delete": "d", "insert": "i"}[op]) for op, spos, dpos in editops]
 
 def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, reference_begin: {str: int}, neighbourhood_radius: int=10) -> ({str: CovidTestPartResult}, float):
     result = {}
@@ -95,7 +101,7 @@ def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, refe
         prev = begin
         distance = Levenshtein.distance(genome[max(0, begin - neighbourhood_radius): begin+len(test_part)+neighbourhood_radius], test_data)
         max_diff = max(max_diff, distance / len(test_data))
-        result[part] = CovidTestPartResult(begin, begin + len(test_part), get_edit_operations(genome[begin: begin+len(test_part)], test_part))
+        result[part] = CovidTestPartResult(begin, begin + len(test_part), get_edit_operations(genome[begin: begin+len(test_part)], test_part), get_edit_operations(genome[begin: begin+len(test_part)], test_part, relaxed=True))
     return result, max_diff
 
 def find_covid_test_in_reference(test: CovidTest, reference: str) -> {str: int}:
@@ -121,7 +127,7 @@ def find_tests(genome: str, tests: [CovidTest], reference: str, tests_in_referen
     return result, max_max_diff
 
 def tests_to_print(header: str, tests_results: [{str: CovidTestPartResult}], tests: [CovidTest]):
-    return {"header": header, "tests": [{"name": test.gene + "_" + test.country + "_" + part, "begin": result[part].begin, "end": result[part].end, "mutations": result[part].mutations} for result, test in zip(tests_results, tests) for part in result]}
+    return {"header": header, "tests": [{"relaxed_mutations" : result[part].relaxed_mutations, "name": test.gene + "_" + test.country + "_" + part, "begin": result[part].begin, "end": result[part].end, "mutations": result[part].mutations} for result, test in zip(tests_results, tests) for part in result]}
 
 def load_genomes():
     genomes = []

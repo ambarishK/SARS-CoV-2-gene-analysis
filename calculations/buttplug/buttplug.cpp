@@ -1,33 +1,31 @@
-#include "edit_distance.h"
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
 
 #include <cstring>
 #include <algorithm>
-#include <map>
-#include <set>
+#include <vector>
+#include <variant>
+#include <limits>
+#include <tuple>
+#include <string>
+#include <optional>
 
-using namespace std::string_literals;
-
-void print_as_python(std::ostream& o, const EditOperation& eo) {
-	print_as_python_dict(o, "position"s, eo.position, "arg"s, eo.arg, "type"s, eo.type);
-}
-
-EditOperation python_loader<EditOperation>::load(std::istream& input) {
-	auto p = decltype(python_loader_struct<uint16_t, char, EditOperation::Type>::with_names_values("position"_sl, "arg"_sl, "type"_sl))::load(input);
-	auto& t = p.as_tuple();
-	return EditOperation(std::get<0>(t), std::get<1>(t), std::get<2>(t));
-}
-
-void print_as_python(std::ostream& o, const EditOperation::Type& t) {
-	print_as_python(o, static_cast<char>(t));
-}
-
-EditOperation::Type python_loader<EditOperation::Type>::load(std::istream& input) {
-	return static_cast<EditOperation::Type>(python_loader<char>::load(input));
-}
+namespace {
+struct EditOperation {
+	enum class Type : char {
+		DELETE = 'd',
+		INSERT = 'i',
+		SUBSTITUTE = 's'
+	};
+	uint16_t position;
+	char arg;
+	Type type;
+	EditOperation() = delete;
+	EditOperation(uint16_t position, char arg, Type type);
+};
 
 EditOperation::EditOperation(uint16_t position, char arg, Type type) : position(position), arg(arg), type(type) {}
 
-namespace {
 static constexpr const uint16_t MAX_PIECE_LEN = 1000;
 static constexpr const uint16_t SKIP_LEN = 50;
 static constexpr const uint16_t SKIP_TRIES = 10;
@@ -62,8 +60,40 @@ struct SimpleIntsPair {
 };
 }
 
+static bool ignored_nucleotide_pair(char a, char b) {
+	static const std::array<std::array<unsigned char, 8>, 256> IGNORED_PAIRS = [](){
+		std::array<std::array<unsigned char, 8>, 256> ignored_pairs{};
+		for(size_t i = 0; i < 256; ++i) {
+			ignored_pairs[i][0] = i;
+		}
+		ignored_pairs['A'] = {'V', 'R', 'W', 'M', 'H', 'N', 'A', 'D'};
+		ignored_pairs['B'] = {'G', 'T', 'B', 'C', 'U'};
+		ignored_pairs['C'] = {'V', 'Y', 'M', 'H', 'N', 'B', 'C', 'S'};
+		ignored_pairs['D'] = {'G', 'T', 'D', 'A', 'U'};
+		ignored_pairs['G'] = {'V', 'G', 'R', 'K', 'N', 'D', 'B', 'S'};
+		ignored_pairs['H'] = {'T', 'H', 'A', 'C', 'U'};
+		ignored_pairs['K'] = {'G', 'T', 'K', 'U'};
+		ignored_pairs['M'] = {'A', 'C', 'M'};
+		ignored_pairs['N'] = {'G', 'T', 'N', 'A', 'C', 'U'};
+		ignored_pairs['R'] = {'A', 'R', 'G'};
+		ignored_pairs['S'] = {'C', 'G', 'S'};
+		ignored_pairs['T'] = {'W', 'T', 'Y', 'H', 'K', 'N', 'D', 'B'};
+		ignored_pairs['U'] = {'W', 'Y', 'H', 'K', 'N', 'D', 'B', 'U'};
+		ignored_pairs['V'] = {'V', 'G', 'C', 'A'};
+		ignored_pairs['W'] = {'A', 'W', 'T', 'U'};
+		ignored_pairs['Y'] = {'C', 'U', 'T', 'Y'};
+		return ignored_pairs;
+	}();
+	for(size_t i = 0; i < 8; ++i) {
+		if(IGNORED_PAIRS[a][i] == b) {
+			return true;
+		}
+	}
+	return false;
+}
+
 template<typename SIZE_TYPE, typename CHAR_TYPE>
-static std::optional<std::vector<EditOperation>> _edit_distance(const CHAR_TYPE* s1, SIZE_TYPE s1_size, const CHAR_TYPE* s2, SIZE_TYPE s2_size, const SIZE_TYPE limit) {
+static std::optional<std::vector<EditOperation>> _edit_distance(const CHAR_TYPE* s1, SIZE_TYPE s1_size, const CHAR_TYPE* s2, SIZE_TYPE s2_size, const SIZE_TYPE limit, bool ignore_uncertain_nucleotides) {
 	static constexpr const SIZE_TYPE SAME = 0;
 	static constexpr const SIZE_TYPE BEGIN = -1;
 	static_assert(static_cast<char>(EditOperation::Type::INSERT) > 0);
@@ -83,16 +113,17 @@ static std::optional<std::vector<EditOperation>> _edit_distance(const CHAR_TYPE*
 		for(SIZE_TYPE j = 1; j <= s2_size; ++j) {
 			SIZE_TYPE ins = matrix[i][j-1].first + 1;
 			SIZE_TYPE del = matrix[i-1][j].first + 1;
-			SIZE_TYPE sub = matrix[i - 1][j - 1].first + (s1[i - 1] == s2[j - 1] ? 0 : 1);
+			SIZE_TYPE substitution_cost = ignore_uncertain_nucleotides ? !ignored_nucleotide_pair(s1[i - 1], s2[j - 1]) : (s1[i - 1] == s2[j - 1] ? 0 : 1);
+			SIZE_TYPE sub = matrix[i - 1][j - 1].first + substitution_cost;
 			if(ins < del) {
 				if(sub < ins) {
-					matrix[i][j] = SimpleIntsPair<SIZE_TYPE>(sub, s1[i - 1] == s2[j - 1] ? SAME : static_cast<SIZE_TYPE>(EditOperation::Type::SUBSTITUTE));
+					matrix[i][j] = SimpleIntsPair<SIZE_TYPE>(sub, substitution_cost ? static_cast<SIZE_TYPE>(EditOperation::Type::SUBSTITUTE) : SAME);
 				} else {
 					matrix[i][j] = SimpleIntsPair<SIZE_TYPE>(ins, static_cast<SIZE_TYPE>(EditOperation::Type::INSERT));
 				}
 			} else {
 				if(sub < del) {
-					matrix[i][j] = SimpleIntsPair<SIZE_TYPE>(sub, s1[i - 1] == s2[j - 1] ? SAME : static_cast<SIZE_TYPE>(EditOperation::Type::SUBSTITUTE));
+					matrix[i][j] = SimpleIntsPair<SIZE_TYPE>(sub, substitution_cost ? static_cast<SIZE_TYPE>(EditOperation::Type::SUBSTITUTE) : SAME);
 				} else {
 					matrix[i][j] = SimpleIntsPair<SIZE_TYPE>(del, static_cast<SIZE_TYPE>(EditOperation::Type::DELETE));
 				}
@@ -175,62 +206,7 @@ static std::vector<std::pair<std::pair<const CHAR_TYPE*, SIZE_TYPE>, std::pair<c
 	return breaks;
 }
 
-
-static void assert_throw(bool a) {
-	if(!a) {
-		throw std::logic_error("Assertion failed.");
-	}
-}
-
-std::string rebuild(const std::vector<EditOperation>& eos, const char *string1, uint16_t len1) {
-	std::string str;
-	std::map<uint16_t, std::vector<EditOperation>> e;
-	for(const EditOperation& eo : eos) {
-		e[eo.position].push_back(eo);
-	}
-	std::set<uint16_t> deleted;
-	for(uint16_t i = 0; i < len1; ++i) {
-		if(e.count(i)) {
-			for(const EditOperation& eo: e.at(i)) {
-				switch(eo.type) {
-				case EditOperation::Type::DELETE:
-					assert_throw(string1[i] == eo.arg);
-					assert_throw(deleted.emplace(i).second);
-					break;
-				case EditOperation::Type::SUBSTITUTE:
-					assert_throw(deleted.emplace(i).second);
-					// fall-through
-				case EditOperation::Type::INSERT:
-					str += eo.arg;
-					break;
-				default:
-					assert_throw(false);
-				}
-			}
-		}
-		if(deleted.count(i) == 0) {
-			str += string1[i];
-		}
-	}
-	if(e.count(len1)) {
-		for(const EditOperation& eo: e.at(len1)) {
-			switch(eo.type) {
-			case EditOperation::Type::INSERT:
-				str += eo.arg;
-				break;
-			case EditOperation::Type::DELETE:
-				// fall-through
-			case EditOperation::Type::SUBSTITUTE:
-				// fall-through
-			default:
-				assert_throw(false);
-			}
-		}
-	}
-	return str;
-}
-
-std::optional<std::vector<EditOperation>> edit_distance_int(const char *string1, uint16_t len1, const char *string2, uint16_t len2, uint16_t limit) {
+static std::optional<std::vector<EditOperation>> edit_distance_int(const char *string1, uint16_t len1, const char *string2, uint16_t len2, uint16_t limit, bool ignore_uncertain_nucleotides) {
 	std::vector<int> s1(len1);
 	std::vector<int> s2(len2);
 	for(uint16_t i = 0; i < len1; ++i) {
@@ -243,7 +219,7 @@ std::optional<std::vector<EditOperation>> edit_distance_int(const char *string1,
 	std::vector<EditOperation> result;
 	uint16_t offset = 0;
 	for(const auto&[f, s] : breaks) {
-		auto r = _edit_distance(f.first, f.second, s.first, s.second, limit);
+		auto r = _edit_distance(f.first, f.second, s.first, s.second, limit, ignore_uncertain_nucleotides);
 		if(!r) {
 			return std::nullopt;
 		}
@@ -256,4 +232,130 @@ std::optional<std::vector<EditOperation>> edit_distance_int(const char *string1,
 		}
 	}
 	return result;
+}
+
+static PyObject* py_get_mutations(PyObject*, PyObject *args) {
+    const char* string1;
+    const char* string2;
+    int ignore_uncertain_nucleotides;
+    if (!PyArg_ParseTuple(args, "ssp", &string1, &string2, &ignore_uncertain_nucleotides))
+        return nullptr;
+    std::optional<std::vector<EditOperation>> r;
+    try {
+	r = edit_distance_int(string1, strlen(string1), string2, strlen(string2), (uint16_t) -1U, ignore_uncertain_nucleotides);
+    } catch (const std::exception& e) {
+	PyErr_SetString(PyExc_RuntimeError, e.what());
+	return nullptr;
+    } catch (...) {
+	PyErr_SetString(PyExc_RuntimeError, "Hell broke loose.");
+	return nullptr;
+    }
+    if(!r) {
+	Py_INCREF(Py_None);
+	return Py_None;
+    }
+    PyObject* ret = PyList_New(0);
+    if(!ret) {
+	PyErr_SetString(PyExc_RuntimeError, "Failed to create a new list.");
+	return nullptr;
+    }
+    for(const EditOperation& eo : *r) {
+	const char* error = nullptr;
+	bool err = true;
+	PyObject *literal_position, *literal_arg, *literal_type, *position_value, *arg_value, *type_value;
+	char buffer[2];
+	buffer[1] = 0;
+	PyObject* dict = PyDict_New();
+	if(!dict) {
+		error = "Failed to create a new dict.";
+		goto err0;
+	}
+	literal_position = PyUnicode_FromString("position");
+	if(!literal_position) {
+		error = "Failed to create 'position' literal.";
+		goto err1;
+	}
+	literal_arg = PyUnicode_FromString("arg");
+	if(!literal_arg) {
+		error = "Failed to create 'arg' literal.";
+		goto err2;
+	}
+	literal_type = PyUnicode_FromString("type");
+	if(!literal_type) {
+		error = "Failed to create 'type' literal.";
+		goto err3;
+	}
+	position_value = PyLong_FromLong(eo.position);
+	if(!position_value) {
+		error = "Failed to create position value.";
+		goto err4;
+	}
+	buffer[0] = eo.arg;
+	arg_value = PyUnicode_FromString(buffer);
+	if(!arg_value) {
+		error = "Failed to create arg value.";
+		goto err5;
+	}
+	buffer[0] = static_cast<char>(eo.type);
+	type_value = PyUnicode_FromString(buffer);
+	if(!type_value) {
+		error = "Failed to create type value.";
+		goto err6;
+	}
+	if(PyDict_SetItem(dict, literal_position, position_value) || PyDict_SetItem(dict, literal_arg, arg_value) || PyDict_SetItem(dict, literal_type, type_value)) {
+		error = "Failed to set dictionary.";
+		goto err7;
+	}
+	err = false;
+	err7:
+	Py_DECREF(type_value);
+	err6:
+	Py_DECREF(arg_value);
+	err5:
+	Py_DECREF(position_value);
+	err4:
+	Py_DECREF(literal_type);
+	err3:
+	Py_DECREF(literal_arg);
+	err2:
+	Py_DECREF(literal_position);
+	if(!err) {
+		if(PyList_Append(ret, dict)) {
+			Py_DECREF(dict);
+			Py_DECREF(ret);
+			return nullptr;
+		} else {
+			Py_DECREF(dict);
+			continue;
+		}
+	}
+	err1:
+	Py_DECREF(dict);
+	err0:
+	Py_DECREF(ret);
+	PyErr_SetString(PyExc_RuntimeError, error);
+	return nullptr;
+    }
+    return ret;
+}
+
+static PyMethodDef methods[] = {
+    {"mutations",  py_get_mutations, METH_VARARGS, "Get mutations between two strings."},
+    {NULL, NULL, 0, NULL} /* Sentinel */
+};
+
+static struct PyModuleDef module = {
+    PyModuleDef_HEAD_INIT,
+    "buttplug", /* name of module */
+    nullptr, /* module documentation */
+    -1, /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
+    methods,
+    nullptr,
+    nullptr,
+    0,
+    nullptr
+};
+
+PyMODINIT_FUNC PyInit_buttplug() {
+    return PyModule_Create(&module);
 }
