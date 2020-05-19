@@ -346,7 +346,7 @@ static PyMethodDef methods[] = {
 
 static struct PyModuleDef module = {
     PyModuleDef_HEAD_INIT,
-    "buttplug", /* name of module */
+    "covid_genomics", /* name of module */
     nullptr, /* module documentation */
     -1, /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
     methods,
@@ -356,6 +356,6 @@ static struct PyModuleDef module = {
     nullptr
 };
 
-PyMODINIT_FUNC PyInit_buttplug() {
+PyMODINIT_FUNC PyInit_covid_genomics() {
     return PyModule_Create(&module);
 }

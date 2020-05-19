@@ -1,7 +1,7 @@
 import Levenshtein
 from calculations.python.paths import *
 from multiprocessing import Pool, cpu_count, Value
-import buttplug
+import covid_genomics
 
 def complementary(sequence: str) -> str:
     sequence = sequence.replace('A','X')
@@ -82,7 +82,7 @@ class CovidTestPartResult:
 
 def get_edit_operations(a: str, b: str, relaxed: bool=False) -> [EditOperation]:
     if relaxed:
-        editops = buttplug.mutations(a, b, True)
+        editops = covid_genomics.mutations(a, b, True)
         return [EditOperation(op["position"], op["arg"], op["type"]) for op in editops]
     else:
         editops = Levenshtein.editops(a, b)
