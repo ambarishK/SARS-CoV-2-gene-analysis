@@ -147,47 +147,47 @@ def load_genomes():
         genomes.append((header, contents))
     return genomes
 
-tests = CovidTest.parse(data_path("primers_public.fas"))
+if __name__ == "__main__":
+    tests = CovidTest.parse(data_path("primers_public.fas"))
 
-with open(data_path(REFERENCE_GENOME), 'r') as file:
-    reference = ''.join(file.read().split()[1:])
-tests_in_reference = [find_covid_test_in_reference(test, reference) for test in tests]
+    with open(data_path(REFERENCE_GENOME), 'r') as file:
+        reference = ''.join(file.read().split()[1:])
+    tests_in_reference = [find_covid_test_in_reference(test, reference) for test in tests]
 
-genomes = load_genomes()
-print(f"{len(genomes)} genomes loaded.", flush=True)
+    genomes = load_genomes()
+    print(f"{len(genomes)} genomes loaded.", flush=True)
 
-counter = None
-total = len(genomes)
+    counter = None
+    total = len(genomes)
+    max_diffs = []
 
-def init(c):
-    global counter
-    counter = c
+    def init(c):
+        global counter
+        counter = c
 
-max_diffs = []
+    def perform_tests(genome: (str, str)) -> (str, {str: CovidTestPartResult}):
+        header, contents = genome
+        global counter
+        global max_diffs
+        global total
+        r, max_diff = find_tests(contents, tests, reference, tests_in_reference)
+        max_diffs.append(max_diff)
+        with counter.get_lock():
+            counter.value += 1
+            c = counter.value
+        if c * 100 // len(genomes) != (c - 1) * 100 // len(genomes):
+            print(f"{c  * 100 // len(genomes)}% Average max diff: {sum(max_diffs) / len(max_diffs)}", flush=True)
+            max_diffs = []
+        return header, r
 
-def perform_tests(genome: (str, str)) -> (str, {str: CovidTestPartResult}):
-    header, contents = genome
-    global counter
-    global max_diffs
-    global total
-    r, max_diff = find_tests(contents, tests, reference, tests_in_reference)
-    max_diffs.append(max_diff)
-    with counter.get_lock():
-        counter.value += 1
-        c = counter.value
-    if c * 100 // len(genomes) != (c - 1) * 100 // len(genomes):
-        print(f"{c  * 100 // len(genomes)}% Average max diff: {sum(max_diffs) / len(max_diffs)}", flush=True)
-        max_diffs = []
-    return header, r
+    try:
+        pool = Pool(cpu_count(), initializer=init, initargs=(Value('i', 0),))
+        result = pool.map(perform_tests, genomes)
+    finally:
+        pool.close()
+        pool.join()
 
-try:
-    pool = Pool(cpu_count(), initializer=init, initargs=(Value('i', 0),))
-    result = pool.map(perform_tests, genomes)
-finally:
-    pool.close()
-    pool.join()
-
-with open(data_path(TESTS_RESULTS), 'w') as file:
-    print(len(genomes), file=file)
-    for header, test_results in result:
-        print(tests_to_print(header, test_results, tests), file=file)
+    with open(data_path(TESTS_RESULTS), 'w') as file:
+        print(len(genomes), file=file)
+        for header, test_results in result:
+            print(tests_to_print(header, test_results, tests), file=file)
