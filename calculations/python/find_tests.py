@@ -97,7 +97,7 @@ def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, refe
         reference_pre = reference[max(0, reference_begin[part] - neighbourhood_radius): reference_begin[part]]
         reference_post = reference[reference_begin[part] + len(test_part): reference_begin[part] + len(test_part) + neighbourhood_radius]
         test_data = reference_pre + test_part + reference_post
-        begin = min(range(prev, len(genome)), key=lambda x: Levenshtein.distance(genome[max(0, x - neighbourhood_radius): x+len(test_part)+neighbourhood_radius], test_data))
+        begin = min(range(prev + 1, len(genome)), key=lambda x: Levenshtein.distance(genome[max(0, x - neighbourhood_radius): x+len(test_part)+neighbourhood_radius], test_data))
         prev = begin
         distance = Levenshtein.distance(genome[max(0, begin - neighbourhood_radius): begin+len(test_part)+neighbourhood_radius], test_data)
         max_diff = max(max_diff, distance / len(test_data))
@@ -109,12 +109,9 @@ def find_covid_test_in_reference(test: CovidTest, reference: str) -> {str: int}:
     prev = -1
     for part in ["F", "P", "R"]:
         test_data = getattr(test, part)
-        begin = min(range(prev, len(reference)), key=lambda x: Levenshtein.distance(reference[x:x+len(test_data)], test_data))
-        if begin > prev:
-            prev = begin
-            result[part] = begin
-        else:
-            raise ValueError(f"Incorrect test {test} part {part} prev {prev} begin {begin}")
+        begin = min(range(prev + 1, len(reference)), key=lambda x: Levenshtein.distance(reference[x:x+len(test_data)], test_data))
+        prev = begin
+        result[part] = begin
     return result
 
 def find_tests(genome: str, tests: [CovidTest], reference: str, tests_in_reference: [{str: int}]) -> ({str: CovidTestPartResult}, float):
