@@ -45,12 +45,8 @@ finally:
     pool.close()
     pool.join()
 
-print("Got tests1", flush=True)
-
 test_results = [tr for tr, _ in test_results_]
 free_energies = [dg for _, dg in test_results_]
-
-print("Got tests2", flush=True)
 
 del test_results_
 
@@ -73,8 +69,6 @@ def get_log_lh_ratio(genome: str, test: CovidTest, test_result: {str: CovidTestP
     return {"F": calc(test.F, genome[test_result["F"].begin: test_result["F"].end], free_energy["F"]), "R": calc(test.R[::-1], genome[test_result["R"].begin: test_result["R"].end][::-1], free_energy["F"])}
 
 log_lh_ratios = [get_log_lh_ratio(g[1], test, tr[1], dG) for g, tr, dG in zip(load_genomes(), test_results, free_energies)]
-
-print("Got log lh", flush=True)
 
 def get_csv_header(test: CovidTest):
     ret = ["header"]
