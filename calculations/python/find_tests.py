@@ -88,7 +88,7 @@ def get_edit_operations(a: str, b: str, relaxed: bool=False) -> [EditOperation]:
         editops = Levenshtein.editops(a, b)
         return [EditOperation(spos, b[dpos] if op == "replace" or op == "insert" else a[spos], {"replace": "s", "delete": "d", "insert": "i"}[op]) for op, spos, dpos in editops]
 
-def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, reference_begin: {str: int}, neighbourhood_radius: int=10) -> ({str: CovidTestPartResult}, float):
+def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, reference_begin: {str: int}, neighbourhood_radius: int=10, hints: {str: (int, int)}=None) -> ({str: CovidTestPartResult}, float):
     result = {}
     prev = -1
     max_diff = 0.0
@@ -97,7 +97,7 @@ def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, refe
         reference_pre = reference[max(0, reference_begin[part] - neighbourhood_radius): reference_begin[part]]
         reference_post = reference[reference_begin[part] + len(test_part): reference_begin[part] + len(test_part) + neighbourhood_radius]
         test_data = reference_pre + test_part + reference_post
-        begin = min(range(prev + 1, len(genome)), key=lambda x: Levenshtein.distance(genome[max(0, x - neighbourhood_radius): x+len(test_part)+neighbourhood_radius], test_data))
+        begin = min(range(prev + 1, len(genome)) if hints is None else range(hints[part][0], hints[part][1]), key=lambda x: Levenshtein.distance(genome[max(0, x - neighbourhood_radius): x+len(test_part)+neighbourhood_radius], test_data))
         prev = begin
         distance = Levenshtein.distance(genome[max(0, begin - neighbourhood_radius): begin+len(test_part)+neighbourhood_radius], test_data)
         max_diff = max(max_diff, distance / len(test_data))
@@ -127,7 +127,6 @@ def tests_to_print(header: str, tests_results: [{str: CovidTestPartResult}], tes
     return {"header": header, "tests": [{"relaxed_mutations" : result[part].relaxed_mutations, "name": test.gene + "_" + test.country + "_" + part, "begin": result[part].begin, "end": result[part].end, "mutations": result[part].mutations} for result, test in zip(tests_results, tests) for part in result]}
 
 def load_genomes():
-    genomes = []
     with open(data_path(FILTERED_GENOMES), 'r') as file:
         next(file)
         header = None
@@ -135,14 +134,13 @@ def load_genomes():
         for line in file:
             if line.startswith(">"):
                 if header is not None:
-                    genomes.append((header, contents))
+                    yield (header, contents)
                 contents = ''
                 header = line.rstrip()
                 continue
             else:
                 contents += line.rstrip()
-        genomes.append((header, contents))
-    return genomes
+        yield (header, contents)
 
 if __name__ == "__main__":
     tests = CovidTest.parse(data_path("primers_public.fas"))
@@ -151,7 +149,7 @@ if __name__ == "__main__":
         reference = ''.join(file.read().split()[1:])
     tests_in_reference = [find_covid_test_in_reference(test, reference) for test in tests]
 
-    genomes = load_genomes()
+    genomes = list(load_genomes())
     print(f"{len(genomes)} genomes loaded.", flush=True)
 
     counter = None
