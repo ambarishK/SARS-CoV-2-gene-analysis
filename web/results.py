@@ -12,7 +12,7 @@ hybridization_temperature = float(sys.argv[7].replace(",", "."))
 SEARCH_RADIUS = 20
 
 with open(data_path(REFERENCE_GENOME), 'r') as file:
-    reference = ''.join(file.read().split()[1:])
+    reference = ''.join(file.read().split('\n')[1:])
 
 test = CovidTest("Your", "Test", sequence["F"], sequence["P"], sequence["R"])
 
@@ -33,9 +33,7 @@ def get_free_energy(test: CovidTest, genome: str, test_result: {str: CovidTestPa
 
 def perform_test_and_get_free_energy(genome: (str, str)) -> ((str, {str: CovidTestPartResult}), {str: float}):
     global test
-    tr = find_covid_test_in_genome(test, genome[1], reference, index, 0,
-                                       {test: (index[test] - SEARCH_RADIUS, index[test] + SEARCH_RADIUS) for test in
-                                        ["F", "P", "R"]})[0]
+    tr = find_covid_test_in_genome(test, genome[1], reference, index, 0, {test_part: (index[test_part] - SEARCH_RADIUS, index[test_part] + SEARCH_RADIUS) for test_part in ["F", "P", "R"]})[0]
     return ((genome[0], tr), get_free_energy(test, genome[1], tr, hybridization_temperature))
 
 try:
@@ -65,7 +63,6 @@ def get_log_lh_ratio(genome: str, test: CovidTest, test_result: {str: CovidTestP
                 ix = i + 1
                 break
         return LOG_LH_RATIO_BETA_0 + LOG_LH_RATIO_BETA_1 * free_energy + LOG_LH_RATIO_BETA_2 * ix + LOG_LH_RATIO_BETA_3 * free_energy * ix
-
     return {"F": calc(test.F, genome[test_result["F"].begin: test_result["F"].end], free_energy["F"]), "R": calc(test.R[::-1], genome[test_result["R"].begin: test_result["R"].end][::-1], free_energy["F"])}
 
 log_lh_ratios = [get_log_lh_ratio(g[1], test, tr[1], dG) for g, tr, dG in zip(load_genomes(), test_results, free_energies)]

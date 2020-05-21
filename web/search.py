@@ -3,7 +3,7 @@ from calculations.python.find_tests import CovidTest, find_covid_test_in_referen
 from calculations.python.paths import *
 
 with open(data_path(REFERENCE_GENOME), 'r') as file:
-    reference = ''.join(file.read().split()[1:])
+    reference = ''.join(file.read().split('\n')[1:])
 
 for i in range(1, 4):
     sys.argv[i] = sys.argv[i].upper()

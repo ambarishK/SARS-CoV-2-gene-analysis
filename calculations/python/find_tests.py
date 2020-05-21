@@ -128,7 +128,6 @@ def tests_to_print(header: str, tests_results: [{str: CovidTestPartResult}], tes
 
 def load_genomes():
     with open(data_path(FILTERED_GENOMES), 'r') as file:
-        next(file)
         header = None
         contents = ''
         for line in file:
@@ -146,7 +145,7 @@ if __name__ == "__main__":
     tests = CovidTest.parse(data_path("primers_public.fas"))
 
     with open(data_path(REFERENCE_GENOME), 'r') as file:
-        reference = ''.join(file.read().split()[1:])
+        reference = ''.join(file.read().split('\n')[1:])
     tests_in_reference = [find_covid_test_in_reference(test, reference) for test in tests]
 
     genomes = list(load_genomes())
