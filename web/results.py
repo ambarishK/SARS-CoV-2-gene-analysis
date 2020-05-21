@@ -57,7 +57,7 @@ def get_free_energies(test: CovidTest, genomes: Iterable[str], test_results: [{s
             if (l, r) in results_dictionary:
                 value = results_dictionary[(l, r)]
             else:
-                value = float(subprocess.check_output(f'{data_path("hybrid-min")} -q -t {temperature} -T {temperature} {l} {r}',shell=True).split()[0])
+                value = float(subprocess.check_output(f'UNAFOLDDAT=data/oligoarrayaux {data_path("hybrid-min")} -q -t {temperature} -T {temperature} {l} {r}',shell=True).split()[0])
                 results_dictionary[(l, r)] = value
             result[test_part] = value
         ret.append(result)
