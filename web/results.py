@@ -16,17 +16,43 @@ with open(data_path(REFERENCE_GENOME), 'r') as file:
 
 test = CovidTest("Your", "Test", sequence["F"], sequence["P"], sequence["R"])
 
-def perform_test(genome: (str, str)) -> (str, {str: CovidTestPartResult}):
-    return (genome[0], find_covid_test_in_genome(test, genome[1], reference, index, 0,
+results_dictionary = {}
+def get_free_energy(test: CovidTest, genome: str, test_result: {str: CovidTestPartResult}, temperature: float) -> {str: float}:
+    global results_dictionary
+    result = {}
+    for test_part in ["F", "P", "R"]:
+        l = getattr(test, test_part)
+        r = genome[test_result[test_part].begin: test_result[test_part].end]
+        if (l, r) in results_dictionary:
+            value = results_dictionary[(l, r)]
+        else:
+            value = float(subprocess.check_output(f'UNAFOLDDAT=data/oligoarrayaux {data_path("hybrid-min")} -q -t {temperature} -T {temperature} {l} {r}',shell=True).split()[0])
+            results_dictionary[(l, r)] = value
+        result[test_part] = value
+    return result
+
+def perform_test_and_get_free_energy(genome: (str, str)) -> ((str, {str: CovidTestPartResult}), {str: float}):
+    global test
+    tr = find_covid_test_in_genome(test, genome[1], reference, index, 0,
                                        {test: (index[test] - SEARCH_RADIUS, index[test] + SEARCH_RADIUS) for test in
-                                        ["F", "P", "R"]})[0])
+                                        ["F", "P", "R"]})[0]
+    return ((genome[0], tr), get_free_energy(test, genome[1], tr, hybridization_temperature))
 
 try:
     pool = Pool(cpu_count())
-    test_results = pool.map(perform_test, load_genomes())
+    test_results_ = pool.map(perform_test_and_get_free_energy, load_genomes())
 finally:
     pool.close()
     pool.join()
+
+print("Got tests1", flush=True)
+
+test_results = [tr for tr, _ in test_results_]
+free_energies = [dg for _, dg in test_results_]
+
+print("Got tests2", flush=True)
+
+del test_results_
 
 LOG_LH_RATIO_BETA_0 = -5.62
 LOG_LH_RATIO_BETA_1 = -1.55
@@ -46,26 +72,6 @@ def get_log_lh_ratio(genome: str, test: CovidTest, test_result: {str: CovidTestP
 
     return {"F": calc(test.F, genome[test_result["F"].begin: test_result["F"].end], free_energy["F"]), "R": calc(test.R[::-1], genome[test_result["R"].begin: test_result["R"].end][::-1], free_energy["F"])}
 
-def get_free_energies(test: CovidTest, genomes: Iterable[str], test_results: [{str: CovidTestPartResult}], temperature: float) -> [{str: float}]:
-    results_dictionary = {}
-    ret = []
-    for genome, test_result in zip(genomes, test_results):
-        result = {}
-        for test_part in ["F", "P", "R"]:
-            l = getattr(test, test_part)
-            r = genome[test_result[test_part].begin: test_result[test_part].end]
-            if (l, r) in results_dictionary:
-                value = results_dictionary[(l, r)]
-            else:
-                value = float(subprocess.check_output(f'UNAFOLDDAT=data/oligoarrayaux {data_path("hybrid-min")} -q -t {temperature} -T {temperature} {l} {r}',shell=True).split()[0])
-                results_dictionary[(l, r)] = value
-            result[test_part] = value
-        ret.append(result)
-    return ret
-
-print("Got tests", flush=True)
-
-free_energies = get_free_energies(test, (g for _, g in load_genomes()), (tr for _, tr in test_results), hybridization_temperature)
 log_lh_ratios = [get_log_lh_ratio(g[1], test, tr[1], dG) for g, tr, dG in zip(load_genomes(), test_results, free_energies)]
 
 print("Got log lh", flush=True)
