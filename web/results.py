@@ -122,12 +122,18 @@ for country, probability in get_countries_probabilities(test_results, log_lh_rat
 print('];')
 print('''
 google.charts.load('current', {
-    'packages':['geochart'],
+    'packages': ['geochart'],
 });
 google.charts.setOnLoadCallback(drawMap);
 function drawMap() {
     let data = google.visualization.arrayToDataTable(map_data);
-    let options = {};
+    let options = {
+        colorAxis: {minValue: 0,  maxValue: 1, colors: ['#ff0000', '#00ff00']},
+        minValue: 0,
+        maxValue: 1,
+        backgroundColor: '#81d4fa',
+        datalessRegionColor: '#ffffff',
+    };
     let chart = new google.visualization.GeoChart(document.getElementById('map'));
     chart.draw(data, options);
 }
