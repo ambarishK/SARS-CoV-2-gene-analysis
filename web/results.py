@@ -1,6 +1,6 @@
 import sys, subprocess
-from typing import Iterable
-
+import statistics
+from web.chart_data import GOOGLE_CHARTS_COUNTRIES_NAMES
 from calculations.python.find_tests import load_genomes, CovidTest, find_covid_test_in_genome, CovidTestPartResult, complementary, tests_to_print
 from calculations.python.paths import *
 from multiprocessing import Pool, cpu_count
@@ -67,6 +67,7 @@ def get_log_lh_ratio(genome: str, test: CovidTest, test_result: {str: CovidTestP
 
 log_lh_ratios = [get_log_lh_ratio(g[1], test, tr[1], dG) for g, tr, dG in zip(load_genomes(), test_results, free_energies)]
 
+'''
 def get_csv_header(test: CovidTest):
     ret = ["header"]
     for part in ["F", "P", "R"]:
@@ -92,3 +93,46 @@ print(','.join(get_csv_header(test)))
 for tr, free_energy, log_lh_ratio in zip(test_results, free_energies, log_lh_ratios):
     header, test_result = tr
     print(','.join(get_csv_line(header, test_result, free_energy, log_lh_ratio)))
+'''
+
+def get_countries_probabilities(test_results: [(str, {str: CovidTestPartResult})], log_lh_ratios: [{str: float}]) -> {str: float}:
+    ret = {}
+    def prob_part(log_lh: float):
+        return 1/(2.7182**(-log_lh)+1)#2.7182**log_lh/(1+2.7182**log_lh)
+    for tr, log_lh in zip(test_results, log_lh_ratios):
+        header, _ = tr
+        country = header.split('/')[1]
+        if country in GOOGLE_CHARTS_COUNTRIES_NAMES:
+            country = GOOGLE_CHARTS_COUNTRIES_NAMES[country]
+        else:
+            country = GOOGLE_CHARTS_COUNTRIES_NAMES[header.split('/')[2]]
+        if country not in ret:
+            ret[country] = []
+        ret[country].append(prob_part(log_lh["F"] * log_lh["R"]))
+    for country in ret:
+        ret[country] = statistics.mean(ret[country])
+    return ret
+
+print('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Virus test verification tool</title>')
+print('<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>')
+print('<script type="text/javascript">')
+print('let map_data = [["Country", "Probability"]', end='')
+for country, probability in get_countries_probabilities(test_results, log_lh_ratios).items():
+    print(f', [{repr(country)}, {probability}]')
+print('];')
+print('''
+google.charts.load('current', {
+    'packages':['geochart'],
+});
+google.charts.setOnLoadCallback(drawMap);
+function drawMap() {
+    let data = google.visualization.arrayToDataTable(map_data);
+    let options = {};
+    let chart = new google.visualization.GeoChart(document.getElementById('map'));
+    chart.draw(data, options);
+}
+      ''')
+print('</script>')
+print('</head><body>')
+print('<div id="map" style="width: 900px; height: 500px;"></div>')
+print('</body></html>')
