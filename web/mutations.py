@@ -3,14 +3,12 @@ from ast import literal_eval
 from scipy import stats
 import plotly.graph_objects as go
 import plotly.express as px
-from io import StringIO
-
-def histogram_dict_to_list(d: {int: int}, length=None):
-    return [d[i] if i in d else 0 for i in range(length)]
+import sys
 
 GENES = ['E_gene', 'M_gene', 'S_gene', 'N_gene', 'orf1ab', 'ORF3a', 'ORF6', 'ORF7', 'ORF8', 'ORF10']
-
-def calc_hist(filename: str):
+'''
+//not tested
+def calc_hist(filename: str) -> {str: [int]}:
     histogram_dict = {gene: {} for gene in GENES}
     with open(filename, 'r') as file:
         next(file)
@@ -23,11 +21,12 @@ def calc_hist(filename: str):
                 if gene_dict[gene["name"]]["invalid_nucleotides"] != 0:
                     continue
                 for mutation in gene["mutations"]:
-                    if mutation["position"] in histogram_dict:
-                        histogram_dict["position"] += 1
+                    if mutation["position"] in histogram_dict[gene["name"]]:
+                        histogram_dict[gene["name"]][mutation["position"]] += 1
                     else:
-                        histogram_dict["position"] = 1
+                        histogram_dict[gene["name"]][mutation["position"]] = 1
     return {gene: [data[i] if i in data else 0 for i in range(max(data))] for gene, data in histogram_dict.items()}
+'''
 
 def del_zscore(list, zscore=20):
     z = abs(stats.zscore(list))
@@ -66,16 +65,9 @@ def icolorbar2(mut_dict):
     fig.update_layout(
         updatemenus=[
             dict(
-                active=4,
                 buttons=get_buttons(),
             )
         ])
-
-    fig.update_traces(hovertemplate='Place in gene: %{x} <br>No. of mutations: %{z} <extra></extra>')
+    fig.update_traces(hovertemplate='Position: %{x} <br>No. of mutations: %{z} <extra></extra>')
     fig.update_yaxes(showticklabels=False)
-    with StringIO() as file:
-        fig.write_html(file, full_html=False, include_plotlyjs='cdn')
-        html = file.getvalue()
-    print(html)
-
-icolorbar2(calc_hist(data_path(CALCULATED_GENOMES_DATA)))
+    fig.write_html(sys.stdout, full_html=False, include_plotlyjs='cdn')

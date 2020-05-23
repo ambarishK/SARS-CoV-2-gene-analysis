@@ -5,6 +5,7 @@ from calculations.python.find_tests import load_genomes, CovidTest, find_covid_t
 from calculations.python.paths import *
 from multiprocessing import Pool, cpu_count
 import numpy as np
+from web.mutations import icolorbar2
 
 sequence = {"F": sys.argv[1], "P": sys.argv[2], "R": sys.argv[3]}
 index = {"F": int(sys.argv[4]), "P": int(sys.argv[5]), "R": int(sys.argv[6])}
@@ -181,5 +182,26 @@ print('<td><div id="hist_F"></div></td>')
 print('<td><div id="hist_Total"></div></td>')
 print('<td><div id="hist_R"></div></td>')
 print('</tr></table>')
-print('<div id="map" style="width: 900px; height: 500px;"></div>')
+print('<div id="map" style="width: 900px; height: 500px; text-align: center;"></div>')
+
+def calc_hist(test_results: [(str, {str: CovidTestPartResult})]) -> {str: [int]}:
+    histogram_dict = {"F": {}, "P": {}, "R": {}}
+    for _, test_result in test_results:
+        for test_part in ["F", "P", "R"]:
+            for mutation in test_result[test_part].mutations:
+                if mutation.position in histogram_dict[test_part]:
+                    histogram_dict[test_part][mutation.position] += 1
+                else:
+                    histogram_dict[test_part][mutation.position] = 1
+    return {tp: [data[i] if i in data else 0 for i in range(max(data))] for tp, data in histogram_dict.items()}
+
+icolorbar2(calc_hist(test_results))
+print('''
+<script type="text/javascript">
+for(let element of document.getElementsByClassName("updatemenu-header")) {
+	element.__onclick()
+	document.getElementsByClassName("updatemenu-dropdown-button")[0].__onclick(0)
+}
+</script>
+''')
 print('</body></html>')
