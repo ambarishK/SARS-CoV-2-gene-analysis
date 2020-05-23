@@ -99,7 +99,10 @@ for tr, free_energy, log_lh_ratio in zip(test_results, free_energies, log_lh_rat
 
 
 def prob_part(log_lh: float):
-    return 1 / (2.7182 ** (-log_lh) + 1)
+    try:
+        return 1 / (2.7182 ** (-log_lh) + 1)
+    except OverflowError:
+        return 0.0 #(2.7182 ** (-log_lh) + 1) was too big, 1/<big number> is about zero
 
 def get_countries_probabilities(test_results: [(str, {str: CovidTestPartResult})], log_lh_ratios: [{str: float}]) -> {str: float}:
     ret = {}
