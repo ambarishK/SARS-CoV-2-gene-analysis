@@ -4,6 +4,7 @@ from web.chart_data import GOOGLE_CHARTS_COUNTRIES_NAMES
 from calculations.python.find_tests import load_genomes, CovidTest, find_covid_test_in_genome, CovidTestPartResult, complementary, tests_to_print
 from calculations.python.paths import *
 from multiprocessing import Pool, cpu_count
+import numpy as np
 
 sequence = {"F": sys.argv[1], "P": sys.argv[2], "R": sys.argv[3]}
 index = {"F": int(sys.argv[4]), "P": int(sys.argv[5]), "R": int(sys.argv[6])}
@@ -95,10 +96,12 @@ for tr, free_energy, log_lh_ratio in zip(test_results, free_energies, log_lh_rat
     print(','.join(get_csv_line(header, test_result, free_energy, log_lh_ratio)))
 '''
 
+
+def prob_part(log_lh: float):
+    return 1 / (2.7182 ** (-log_lh) + 1)
+
 def get_countries_probabilities(test_results: [(str, {str: CovidTestPartResult})], log_lh_ratios: [{str: float}]) -> {str: float}:
     ret = {}
-    def prob_part(log_lh: float):
-        return 1/(2.7182**(-log_lh)+1)#2.7182**log_lh/(1+2.7182**log_lh)
     for tr, log_lh in zip(test_results, log_lh_ratios):
         header, _ = tr
         country = header.split('/')[1]
@@ -113,18 +116,34 @@ def get_countries_probabilities(test_results: [(str, {str: CovidTestPartResult})
         ret[country] = statistics.mean(ret[country])
     return ret
 
+HISTOGRAM_BUCKETS = 11
+
 print('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Virus test verification tool</title>')
 print('<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>')
 print('<script type="text/javascript">')
-print('let map_data = [["Country", "Probability"]', end='')
+print('')
+print('let map_data = [["Country", "Percent"]', end='')
 for country, probability in get_countries_probabilities(test_results, log_lh_ratios).items():
     print(f', [{repr(country)}, {probability}]')
 print('];')
+print('let histograms_data = {')
+probabilities = {"F": [prob_part(r["F"]) for r in log_lh_ratios], "R": [prob_part(r["R"]) for r in log_lh_ratios]}
+probabilities["Total"] = [a * b for a, b in zip(probabilities["F"], probabilities["R"])]
+for graph in probabilities:
+    probabilities[graph] = (np.histogram(probabilities[graph], np.linspace(0.0, 1.0, HISTOGRAM_BUCKETS))[0]*100/len(probabilities[graph])).tolist()
+histogram_buckets = np.linspace(0.0, 1.0, HISTOGRAM_BUCKETS)
+for graph, data in probabilities.items():
+    print(f'{repr(graph)}: [["Bucket", "Probability"],')
+    for i, probability in enumerate(data):
+        print(f'["{round(histogram_buckets[i], 2)} - {round(histogram_buckets[i + 1], 2)}", {probability}],')
+    print('],')
+print('};')
 print('''
 google.charts.load('current', {
-    'packages': ['geochart'],
+    'packages': ['geochart', 'corechart'],
 });
 google.charts.setOnLoadCallback(drawMap);
+google.charts.setOnLoadCallback(drawHistograms);
 function drawMap() {
     let data = google.visualization.arrayToDataTable(map_data);
     let options = {
@@ -137,8 +156,30 @@ function drawMap() {
     let chart = new google.visualization.GeoChart(document.getElementById('map'));
     chart.draw(data, options);
 }
-      ''')
+function drawHistograms() {
+    let names = {F: "forward primer", R: "reverse primer", Total: "test"}
+    Object.keys(histograms_data).forEach(function(graph) {
+        let data = google.visualization.arrayToDataTable(histograms_data[graph]);
+        let options = {
+            width: 600,
+            height: 500,
+            chartArea: {width: '80%', height: '60%'},
+            vAxis: {minValue: 0, maxValue: 100, title: "% of genomes", format: "#'%'"},
+            legend: {position: "none"},
+            hAxis: {slantedText: true, slantedTextAngle: 70, title: "Estimated likelihood of amplification for " + names[graph]},
+            title: "Results of " + names[graph],
+        };
+        let chart = new google.visualization.ColumnChart(document.getElementById('hist_' + graph));
+        chart.draw(data, options);
+    });
+}
+''')
 print('</script>')
 print('</head><body>')
+print('<table><tr>')
+print('<td><div id="hist_F"></div></td>')
+print('<td><div id="hist_Total"></div></td>')
+print('<td><div id="hist_R"></div></td>')
+print('</tr></table>')
 print('<div id="map" style="width: 900px; height: 500px;"></div>')
 print('</body></html>')

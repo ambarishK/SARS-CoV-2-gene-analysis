@@ -23,7 +23,7 @@ for part in ["F", "P", "R"]:
 print(f"Please note that for the R part complementary sequence <b>{complementary(sequence['R'])}</b> has been used.<br><br>")
 
 print("Do you want to continue with those values?<br><br>")
-print('<form action="results.php" method="get">')
+print('<form action="tests_results.php" method="get">')
 for part in ["F", "P", "R"]:
     print(f'\t<label for="{part}_index">Index of {part}:</label><br>')
     print(f'\t<input type="text" id="{part}_index" name="{part}_index" value="{parts[part]}"><br>')
