@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := project
 CXX := g++
-CXX_FLAGS := -g -std=c++17 -Werror -Wall -Wextra -march=native -ltbb
+CXX_FLAGS := -g -std=c++17 -Werror -Wall -Wextra -march=native -ltbb -Wno-unused-command-line-argument
 
 EXECUTABLES := findgenemutations.exe findrelatives.exe
 CPP = $(wildcard *.cpp)
