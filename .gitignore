@@ -1,4 +1,6 @@
-/calculations/c++/findgenemutations
+/calculations/c++/*.exe
+/calculations/c++/*.d
+/calculations/c++/*.o
 /data
 !/data/reference
 /.idea
