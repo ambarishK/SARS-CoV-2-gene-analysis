@@ -106,11 +106,11 @@ def find_covid_test_in_genome(test: CovidTest, genome: str, reference: str, refe
 
 def find_covid_test_in_reference(test: CovidTest, reference: str) -> {str: int}:
     result = {}
-    prev = -1
+    prev = 0
     for part in ["F", "P", "R"]:
         test_data = getattr(test, part)
-        begin = min(range(prev + 1, len(reference)), key=lambda x: Levenshtein.distance(reference[x:x+len(test_data)], test_data))
-        prev = begin
+        begin = min(range(prev, len(reference)), key=lambda x: Levenshtein.distance(reference[x:x+len(test_data)], test_data))
+        prev = begin + len(test_data)
         result[part] = begin
     return result
 

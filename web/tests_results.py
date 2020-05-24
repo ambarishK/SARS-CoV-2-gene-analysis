@@ -7,6 +7,8 @@ from multiprocessing import Pool, cpu_count
 import numpy as np
 from web.mutations import icolorbar2
 
+np.seterr(divide='ignore', invalid='ignore')
+
 sequence = {"F": sys.argv[1], "P": sys.argv[2], "R": sys.argv[3]}
 index = {"F": int(sys.argv[4]), "P": int(sys.argv[5]), "R": int(sys.argv[6])}
 hybridization_temperature = float(sys.argv[7].replace(",", "."))
