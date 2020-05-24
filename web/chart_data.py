@@ -6,6 +6,7 @@ GOOGLE_CHARTS_COUNTRIES_NAMES = {
     "Australia": "Australia",
     "Spain": "Spain",
     "Scotland": "United Kingdom",
+    "Lebanon": "Lebanon",
     "Italy": "Italy",
     "Mexico": "Mexico",
     "Iran": "Iran",
@@ -17,6 +18,7 @@ GOOGLE_CHARTS_COUNTRIES_NAMES = {
     "England": "United Kingdom",
     "Taiwan": "Taiwan",
     "France": "France",
+    "JAM": "Jamaica",
     "Finland": "Finland",
     "Wales": "United Kingdom",
     "Sweden": "Sweden",
@@ -117,5 +119,5 @@ GOOGLE_CHARTS_COUNTRIES_NAMES = {
     "Kuwait": "Kuwait",
     "Gambia": "Gambia",
     "Cambodia": "Cambodia",
-    "DRC": "CD",
+    "DRC": "CD", #Democratic Republic of the Congo
 }

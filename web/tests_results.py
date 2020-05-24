@@ -1,5 +1,5 @@
 import sys, subprocess
-import statistics
+import statistics, datetime
 from web.chart_data import GOOGLE_CHARTS_COUNTRIES_NAMES
 from calculations.python.find_tests import load_genomes as load_genomes_raw, CovidTest, find_covid_test_in_genome, CovidTestPartResult
 from calculations.python.paths import *
@@ -15,10 +15,22 @@ hybridization_temperature = float(sys.argv[7].replace(",", "."))
 
 SEARCH_RADIUS = 20
 LOG_HG_RATIO_LEN = 6
+LAST_DAYS_GENOMES = 69
+
+def string_to_date(string: str) -> datetime.date:
+    l = [int(e) for e in string.split('-')]
+    if len(l) == 1:
+        return datetime.date(*l, 1, 1)
+    if len(l) == 2:
+        return datetime.date(*l, 1)
+    if len(l) == 3:
+        return datetime.date(*l)
+    raise ValueError("Wrong date format")
 
 def load_genomes():
     required_len = max([v for _, v in index.items()]) + SEARCH_RADIUS - 1 + max(LOG_HG_RATIO_LEN, max((len(v) for _, v in sequence.items())))
-    return ((h, c) for h, c in load_genomes_raw() if len(c) >= required_len)
+    min_date = datetime.date.today() - datetime.timedelta(days=LAST_DAYS_GENOMES)
+    return ((h, c) for h, c in load_genomes_raw() if len(c) >= required_len and min_date <= string_to_date(h.split("|")[-1]))
 
 with open(data_path(REFERENCE_GENOME), 'r') as file:
     reference = ''.join(file.read().split('\n')[1:])
@@ -111,20 +123,26 @@ def prob_part(log_lh: float):
     except OverflowError:
         return 0.0 #(2.7182 ** (-log_lh) + 1) was too big, 1/<big number> is about zero
 
-def get_countries_probabilities(test_results: [(str, {str: CovidTestPartResult})], log_lh_ratios: [{str: float}]) -> {str: float}:
+def get_countries_probabilities(test_results: [(str, {str: CovidTestPartResult})], log_lh_ratios: [{str: float}]) -> {str: (float, float)}:
     ret = {}
     for tr, log_lh in zip(test_results, log_lh_ratios):
         header, _ = tr
-        country = header.split('/')[1]
+        try:
+            country = header.split('/')[1]
+        except:
+            continue
         if country in GOOGLE_CHARTS_COUNTRIES_NAMES:
             country = GOOGLE_CHARTS_COUNTRIES_NAMES[country]
         else:
-            country = GOOGLE_CHARTS_COUNTRIES_NAMES[header.split('/')[2]]
+            country = header.split('/')[2]
+            if country not in GOOGLE_CHARTS_COUNTRIES_NAMES:
+                raise ValueError(header)
+            country = GOOGLE_CHARTS_COUNTRIES_NAMES[country]
         if country not in ret:
             ret[country] = []
         ret[country].append(prob_part(log_lh["F"] * log_lh["R"]))
     for country in ret:
-        ret[country] = statistics.mean(ret[country])
+        ret[country] = (statistics.mean(ret[country]), len(ret[country]))
     return ret
 
 HISTOGRAM_BUCKETS = 11
@@ -133,9 +151,10 @@ print('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Virus test verifi
 print('<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>')
 print('<script type="text/javascript">')
 print('')
-print('let map_data = [["Country", "Percent"]', end='')
-for country, probability in get_countries_probabilities(test_results, log_lh_ratios).items():
-    print(f', [{repr(country)}, {probability}]')
+print('let map_data = [["Country", "Probability", "Samples"]', end='')
+for country, e in get_countries_probabilities(test_results, log_lh_ratios).items():
+    probability, samples = e
+    print(f', [{repr(country)}, {probability}, {samples}]')
 print('];')
 print('let histograms_data = {')
 probabilities = {"F": [prob_part(r["F"]) for r in log_lh_ratios], "R": [prob_part(r["R"]) for r in log_lh_ratios]}

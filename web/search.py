@@ -29,7 +29,7 @@ for part in ["F", "P", "R"]:
     print(f'\t<input type="text" id="{part}_index" name="{part}_index" value="{parts[part]}"><br>')
     print(f'\t<input type="hidden" id="{part}_input" name="{part}_input" value="{sequence[part]}">')
 print(f'\t<label for="hybridization_temperature">Hybridization Temperature (°C):</label><br>')
-print(f'\t<input type="text" id="hybridization_temperature" name="hybridization_temperature" value="37"><br>')
+print(f'\t<input type="text" id="hybridization_temperature" name="hybridization_temperature" value="60"><br>')
 print('\t<input type="submit" value="Continue">')
 
 
