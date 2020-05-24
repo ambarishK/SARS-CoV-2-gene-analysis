@@ -1,7 +1,7 @@
 import sys, subprocess
 import statistics
 from web.chart_data import GOOGLE_CHARTS_COUNTRIES_NAMES
-from calculations.python.find_tests import load_genomes, CovidTest, find_covid_test_in_genome, CovidTestPartResult, complementary, tests_to_print
+from calculations.python.find_tests import load_genomes as load_genomes_raw, CovidTest, find_covid_test_in_genome, CovidTestPartResult
 from calculations.python.paths import *
 from multiprocessing import Pool, cpu_count
 import numpy as np
@@ -12,6 +12,11 @@ index = {"F": int(sys.argv[4]), "P": int(sys.argv[5]), "R": int(sys.argv[6])}
 hybridization_temperature = float(sys.argv[7].replace(",", "."))
 
 SEARCH_RADIUS = 20
+LOG_HG_RATIO_LEN = 6
+
+def load_genomes():
+    required_len = max([v for _, v in index.items()]) + SEARCH_RADIUS - 1 + max(LOG_HG_RATIO_LEN, max((len(v) for _, v in sequence.items())))
+    return ((h, c) for h, c in load_genomes_raw() if len(c) >= required_len)
 
 with open(data_path(REFERENCE_GENOME), 'r') as file:
     reference = ''.join(file.read().split('\n')[1:])
@@ -57,10 +62,10 @@ LOG_LH_RATIO_BETA_3 = 0.18
 
 def get_log_lh_ratio(genome: str, test: CovidTest, test_result: {str: CovidTestPartResult}, free_energy: {str: float}) -> {str: float}:
     def calc(test_part: str, gen_part: str, free_energy: float):
-        test_part = test_part[-6:]
-        gen_part = gen_part[-6:]
+        test_part = test_part[-LOG_HG_RATIO_LEN:]
+        gen_part = gen_part[-LOG_HG_RATIO_LEN:]
         ix = 0
-        for i in reversed(range(6)):
+        for i in reversed(range(LOG_HG_RATIO_LEN)):
             if test_part[i] != gen_part[i]:
                 ix = i + 1
                 break
