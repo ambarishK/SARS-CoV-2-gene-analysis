@@ -40,7 +40,7 @@ def get_free_energy(test: CovidTest, genome: str, test_result: {str: CovidTestPa
 
 def perform_test_and_get_free_energy(genome: (str, str)) -> ((str, {str: CovidTestPartResult}), {str: float}):
     global test
-    tr = find_covid_test_in_genome(test, genome[1], reference, index, 0, {test_part: (index[test_part] - SEARCH_RADIUS, index[test_part] + SEARCH_RADIUS) for test_part in ["F", "P", "R"]})[0]
+    tr = find_covid_test_in_genome(test, genome[1], reference, index, 0, {test_part: (max(index[test_part] - SEARCH_RADIUS, 0), min(len(genome[1]), index[test_part] + SEARCH_RADIUS)) for test_part in ["F", "P", "R"]})[0]
     return ((genome[0], tr), get_free_energy(test, genome[1], tr, hybridization_temperature))
 
 try:
