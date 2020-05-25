@@ -141,10 +141,10 @@ void find_similar_genomes(const std::vector<std::pair<std::unique_ptr<Genome>, s
 		std::ofstream output = open_file_o(comparisons_output_filename);
 		for(const auto& [distances, group_ids, edit_operation] : results) {
 			print_as_python_dict(output,
-				"distance_compared", std::get<0>(distances),
-				"distance_reference", std::get<1>(distances),
-				"group_id_compared", std::get<0>(group_ids),
-				"group_id_reference", std::get<1>(group_ids),
+				"distance_compared", std::get<1>(distances),
+				"distance_reference", std::get<0>(distances),
+				"group_id_compared", std::get<1>(group_ids),
+				"group_id_reference", std::get<0>(group_ids),
 				"mutation", edit_operation);
 			output << '\n';
 		}
