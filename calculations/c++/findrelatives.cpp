@@ -1,51 +1,154 @@
+#ifndef DEBUG
+#define DEBUG 0
+#endif
+
 #include "genome.h"
 #include "paths.h"
 #include "util.h"
 #include "edit_distance.h"
 
+#include <map>
+#include <set>
+
 using namespace std::string_literals;
 using namespace filenames;
 
-#ifndef DEBUG
-#define DEBUG 0
-#endif
-
-bool similar_genomes(const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>& a, const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>& b, size_t max_distance = 1) {
+std::optional<EditOperation> similar_genomes(const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>& a, const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>& b) {
 	if(a.second->distance < 0 || b.second->distance < 0) {
-		return false;
+		return std::nullopt;
 	}
-	if((size_t) std::abs(a.second->distance - b.second->distance) > max_distance) {
-		return false;
+	if((size_t) std::abs(a.second->distance - b.second->distance) > 1) {
+		return std::nullopt;
 	}
-	try {
-		return (bool) edit_distance_int(a.first->data.data(), a.first->data.size(), b.first->data.data(), b.first->data.size(), max_distance);
-	} catch (...) {
-		return false;
+	const char* a_str = a.first->data.data();
+	size_t a_len = a.first->data.size();
+	const char* b_str = b.first->data.data();
+	size_t b_len = b.first->data.size();
+	while(a_len && b_len && a_str[0] == b_str[0]) {
+		++a_str;
+		++b_str;
+		--a_len;
+		--b_len;
 	}
+	while(a_len && b_len && a_str[a_len - 1] == b_str[b_len - 1]) {
+		--a_len;
+		--b_len;
+	}
+	if(a_len == 1 && b_len == 0) {
+		return {EditOperation(a_str - a.first->data.data(), a_str[0], EditOperation::Type::DELETE)};
+	}
+	if(a_len == 0 && b_len == 1) {
+		return {EditOperation(a_str - a.first->data.data(), b_str[0], EditOperation::Type::INSERT)};
+	}
+	if(a_len == 1 && b_len == 1) {
+		return {EditOperation(a_str - a.first->data.data(), b_str[0], EditOperation::Type::SUBSTITUTE)};
+	}
+	return {};
 }
 
-void find_similar_genomes(const std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>>& genomes, const std::string& output_filename) {
-	std::vector<std::vector<const Genome*>> results(genomes.size());
-	transform_with_progress(genomes.begin(), genomes.end(), results.begin(), [&genomes](const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>& genome) {
-		size_t index = &genome - genomes.data();
-		std::vector<const Genome*> result;
-		for(size_t i = index + 1; i < genomes.size(); ++i) {
-			if(similar_genomes(genome, genomes[i])) {
-				result.push_back(genomes[i].first.get());
+void find_similar_genomes(const std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>>& genomes, const std::string& groups_output_filename, const std::string& comparisons_output_filename) {
+	std::cout << "Grouping genomes by distance to reference..." << std::endl;
+	std::map<decltype(Genome::ComparisonResult::distance), std::vector<const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>*>> by_edit_distance_to_reference;
+
+	for(const auto& g : genomes) {
+		auto distance = g.second->distance;
+		if(distance >= 0) {
+			by_edit_distance_to_reference[distance].push_back(&g);
+		}
+	}
+	std::cout << "Finished grouping genomes, " << by_edit_distance_to_reference.size() << " distances." << std::endl;
+
+	std::map<decltype(Genome::ComparisonResult::distance), std::vector<std::vector<const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>*>>> by_edit_distance_to_reference_equal;
+
+	size_t group_count = 0;
+	std::cout << "Grouping same genomes..." << std::endl;
+	for(const auto&[distance, gens] : by_edit_distance_to_reference) {
+		std::vector<std::vector<const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>*>> partition;
+		for(const auto genome : gens) {
+			bool match = false;
+			for(auto& p : partition) {
+				if(genome->first->data == (**p.begin()).first->data) {
+					p.push_back(genome);
+					match = true;
+					break;
+				}
+			}
+			if(!match) {
+				partition.push_back({genome});
+				++group_count;
 			}
 		}
-		return result;
-	}, std::cout);
-	size_t total_results = 0;
-	for(const auto& v : results) {
-		total_results += v.size();
+		by_edit_distance_to_reference_equal.emplace(distance, move(partition));
+		by_edit_distance_to_reference.at(distance).clear();
 	}
-	std::ofstream output = open_file_o(output_filename);
-	output << total_results << '\n';
-	for(size_t i = 0; i < genomes.size(); ++i) {
-		for(const Genome* o: results[i]) {
-			output << genomes[i].first->header << '\n' << o->header << '\n';
+	by_edit_distance_to_reference.clear();
+	std::cout << "Finished grouping same genomes, " << group_count << " groups." << std::endl;
+
+	std::cout << "Comparing groups..." << std::endl;
+	std::vector<std::tuple<std::pair<decltype(Genome::ComparisonResult::distance), decltype(Genome::ComparisonResult::distance)>, std::pair<size_t, size_t>, EditOperation>> results;
+
+	{
+		std::mutex results_mutex;
+		std::vector<decltype(Genome::ComparisonResult::distance)> distances;
+		distances.reserve(by_edit_distance_to_reference_equal.size());
+		for(const auto&[distance, gens] : by_edit_distance_to_reference_equal) {
+			distances.push_back(distance);
 		}
+		for_each_with_progress(distances.begin(), distances.end(), [&by_edit_distance_to_reference_equal, &results_mutex, &results](decltype(Genome::ComparisonResult::distance) distance){
+			auto other_gens = by_edit_distance_to_reference_equal.find(distance + 1);
+			if(other_gens == by_edit_distance_to_reference_equal.end()) {
+				return;
+			}
+			const auto& gens = by_edit_distance_to_reference_equal.at(distance);
+			for(size_t a = 0; a < gens.size(); ++a) {
+				const std::vector<const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>*>& a_gens = gens[a];
+				for(size_t b = 0; b < other_gens->second.size(); ++b) {
+					const std::vector<const std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>*>& b_gens = other_gens->second[b];
+					auto r = similar_genomes(**a_gens.begin(), **b_gens.begin());
+					if(r) {
+						std::lock_guard<std::mutex> lock(results_mutex);
+						results.emplace_back(std::make_pair(distance, distance + 1), std::make_pair(a, b), std::move((*r)));
+					}
+				}
+			}
+		}, std::cout);
+	}
+	std::cout << "Finished comparing groups, there are " << results.size() << " matches." << std::endl;
+
+
+	{
+		std::cout << "Printing groups..." << std::endl;
+		std::ofstream output = open_file_o(groups_output_filename);
+		for(const auto&[distance, gens] : by_edit_distance_to_reference_equal) {
+			std::vector<std::vector<std::string>> groups;
+			groups.reserve(gens.size());
+			for(const auto& eq : gens) {
+				std::vector<std::string> names;
+				names.reserve(eq.size());
+				for(const auto& genome : eq) {
+					names.push_back(genome->first->header);
+				}
+				groups.push_back(move(names));
+			}
+			print_as_python_dict(output, "distance", distance, "groups", groups);
+			output << '\n';
+		}
+		std::cout << "Finished printing groups." << std::endl;
+	}
+
+	{
+		std::cout << "Printing comparisons..." << std::endl;
+		std::ofstream output = open_file_o(comparisons_output_filename);
+		for(const auto& [distances, group_ids, edit_operation] : results) {
+			print_as_python_dict(output,
+				"distance_compared", std::get<0>(distances),
+				"distance_reference", std::get<1>(distances),
+				"group_id_compared", std::get<0>(group_ids),
+				"group_id_reference", std::get<1>(group_ids),
+				"mutation", edit_operation);
+			output << '\n';
+		}
+		std::cout << "Finished printing comparisons." << std::endl;
 	}
 }
 
@@ -114,10 +217,10 @@ int main(int argc, char* argv[]){
 	std::cout << "Genomes loaded" << std::endl;
 	switch(argc) {
 	case 1:
-		find_similar_genomes(genomes, data_path(EXTRA_COMPARISONS_REQUESTS));
+		find_similar_genomes(genomes, data_path("relatives_groups.txt"), data_path("relatives_comparisons.txt"));
 		break;
 	case 4:
-		find_similar_genomes_by_sequence(genomes, argv[1], std::stoll(argv[2]), std::stoll(argv[3]), data_path("relatives_sequences.txt"), data_path("relatives_comparisons.txt"));
+		find_similar_genomes_by_sequence(genomes, argv[1], std::stoll(argv[2]), std::stoll(argv[3]), data_path("relatives_seq_sequences.txt"), data_path("relatives_seq_comparisons.txt"));
 		break;
 	default:
 		std::cout << "Wrong usage.\n";

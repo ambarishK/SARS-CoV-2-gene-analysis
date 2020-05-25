@@ -1,3 +1,7 @@
+#ifndef DEBUG
+#define DEBUG 0
+#endif
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -15,10 +19,6 @@
 #include "util.h"
 
 using namespace std::string_literals;
-
-#ifndef DEBUG
-#define DEBUG 0
-#endif
 
 void calculate_genomes(const Genome& reference, const std::string& genomes_filename, const std::string& output_filename) {
 	std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> genomes;
