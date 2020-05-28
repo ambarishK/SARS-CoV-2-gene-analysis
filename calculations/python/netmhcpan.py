@@ -85,37 +85,45 @@ Protein asdf0. Allele HLA-A*02:01. Number of high binders 0. Number of weak bind
 with open(data_path(CALCULATED_GENOMES_DATA), 'r') as genomes, tempfile.NamedTemporaryFile('w') as temp_input, tempfile.NamedTemporaryFile('r') as temp_output:
     next(genomes)
     substrings_length = None
-    skipped = set()
+    good = 0
+    skipped = 0
+    parts = {}
     for counter, e in enumerate(zip(genomes, load_genomes())):
         line, raw_genome = e
         header, contents = raw_genome
         genome = ast.literal_eval(line)
         try:
             part = get_genome_part_to_analyze(genome, contents)
+            good += 1
         except ValueError:
-            skipped.add(counter)
+            skipped += 1
             continue
-        print(">a", file=temp_input)
         if substrings_length is not None:
             if len(part) != substrings_length:
                 raise ValueError("Uneven lengths")
         else:
             substrings_length = len(part)
-        print(part, file=temp_input)
+        if part not in parts:
+            parts[part] = [(counter, header)]
+        else:
+            parts[part].append((counter, header))
     if substrings_length is None:
         raise ValueError("Empty input or all skipped")
     if substrings_length < 8:
         raise ValueError("Lengths too short (<8)")
+    for part in parts:
+        print(">a", file=temp_input)
+        print(part, file=temp_input)
     temp_input.flush()
     print(f"Starting netMHCpan", file=sys.stderr)
     subprocess.check_output(f'{NETMHCPAN_LOCATION} -a {MHC_ALLELE} {"-p " if PEPTIDE else ""}-l {substrings_length} -f {temp_input.name} > {temp_output.name}', shell=True)
     print(f"netMHCpan finished", file=sys.stderr)
     temp_output.seek(0)
-    good_results = 0
     print(','.join(["header", "mhc"] + NetMHCpanResult.fields))
-    for result, genome in (e for counter, e in enumerate(zip(load_netmhcpan_results(temp_output), load_genomes())) if counter not in skipped):
-        good_results += 1
-        print(genome[0], end=',')
-        print(MHC_ALLELE, end=',')
-        print(','.join(str(getattr(result, field)) for field in NetMHCpanResult.fields))
-    print(f"{len(skipped)} genomes skipped, {good_results} good", file=sys.stderr)
+    for result, parts_entry in zip(load_netmhcpan_results(temp_output), parts.items()):
+        result_csv = ','.join(str(getattr(result, field)) for field in NetMHCpanResult.fields)
+        for _, header in parts_entry[1]:
+            print(header, end=',')
+            print(MHC_ALLELE, end=',')
+            print(result_csv)
+    print(f"{skipped} genomes skipped, {good} good", file=sys.stderr)
