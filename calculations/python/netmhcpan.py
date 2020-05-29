@@ -27,12 +27,12 @@ with open(data_path('netmhcpan_peptides.txt'), 'r') as file:
 
 def get_genome_part_to_analyze(genome, contents):
     result = {}
-    genome_peptide = translate(transcribe(contents))
     for gene in genome[0]["genes"]:
+        gene_peptide = translate(transcribe(contents[gene["begin"]:gene["end"]]))
         for peptide_data, peptide_location in peptides:
             if peptide_location >= gene["begin"] // 3 and peptide_location < gene["end"] // 3 and gene["invalid_nucleotides"] == 0:
                 try:
-                    result[peptide_data] = find_peptide_in_genome(genome_peptide, peptide_data, peptide_location)
+                    result[peptide_data] = find_peptide_in_genome(gene_peptide, peptide_data, peptide_location - gene["begin"] // 3)
                 except GenomeError:
                     pass
     return result
