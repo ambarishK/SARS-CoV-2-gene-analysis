@@ -1,16 +1,41 @@
 from calculations.python.paths import *
+from calculations.python.util import *
 from calculations.python.find_tests import load_genomes as load_genomes_raw
-import ast, tempfile, subprocess, sys
+import ast, tempfile, subprocess, sys, Levenshtein
 
-MAX_ENTRIES = 4
+MAX_ENTRIES = 40
 NETMHCPAN_LOCATION = data_path('netMHCpan')
-MHC_ALLELES = ['HLA-A02:01', 'HLA-A01:01']
+
+if len(sys.argv) < 2:
+    print('USAGE:\nnetmhcpan HLAs...')
+    exit(1)
+
+def get_mhc():
+    return (sys.argv[i] for i in range(1, len(sys.argv)))
+
+class GenomeError(Exception):
+    pass
+
+def find_peptide_in_genome(genome_peptide, peptide_data, peptide_location, search_radius=10, min_peptide_len=8):
+    m = min((genome_peptide[peptide_location + x:peptide_location + x + len(peptide_data)] for x in range(-search_radius, search_radius + 1)), key=lambda x: Levenshtein.distance(x, peptide_data))
+    if len(m) >= min_peptide_len:
+        return m
+    raise GenomeError
+
+with open(data_path('netmhcpan_peptides.txt'), 'r') as file:
+    peptides = [(p[0], int(p[1])) for p in (p.split('\t') for p in file.read().split('\n') if len(p) > 0)]
 
 def get_genome_part_to_analyze(genome, contents):
+    result = {}
+    genome_peptide = translate(transcribe(contents))
     for gene in genome[0]["genes"]:
-        if gene["name"] == "E_gene":
-            return contents[gene["begin"]:gene["begin"] + 8]
-    raise ValueError
+        for peptide_data, peptide_location in peptides:
+            if peptide_location >= gene["begin"] // 3 and peptide_location < gene["end"] // 3 and gene["invalid_nucleotides"] == 0:
+                try:
+                    result[peptide_data] = find_peptide_in_genome(genome_peptide, peptide_data, peptide_location)
+                except GenomeError:
+                    pass
+    return result
 
 def load_genomes():
     for v, e in enumerate(load_genomes_raw()):
@@ -70,33 +95,30 @@ with open(data_path(CALCULATED_GENOMES_DATA), 'r') as genomes, tempfile.NamedTem
         line, raw_genome = e
         header, contents = raw_genome
         genome = ast.literal_eval(line)
-        try:
-            part = get_genome_part_to_analyze(genome, contents)
-            good += 1
-        except ValueError:
-            skipped += 1
-            continue
-        if len(part) < 8:
-            raise ValueError("Lengths too short (<8)")
-        if part not in parts:
-            parts[part] = [(counter, header)]
-        else:
-            parts[part].append((counter, header))
+        part = get_genome_part_to_analyze(genome, contents)
+        good += len(part)
+        skipped += len(peptides) - len(part)
+        for reference_peptide, peptide_in_genome in part.items():
+            if peptide_in_genome not in parts:
+                parts[peptide_in_genome] = [(counter, header, reference_peptide)]
+            else:
+                parts[peptide_in_genome].append((counter, header, reference_peptide))
     if len(parts) == 0:
         raise ValueError("Empty input or all skipped")
     for part in parts:
         print(part, file=temp_input)
     temp_input.flush()
-    print(','.join(["header", "mhc"] + NetMHCpanResult.fields))
-    for mhc in MHC_ALLELES:
+    print(','.join(["header", "mhc", "reference_peptide"] + NetMHCpanResult.fields))
+    for mhc in get_mhc():
         print(f"Starting netMHCpan {mhc}", file=sys.stderr)
         subprocess.check_output(f'{NETMHCPAN_LOCATION} -a {mhc} -p -f {temp_input.name} > {temp_output.name}', shell=True)
         print(f"netMHCpan finished {mhc}", file=sys.stderr)
         temp_output.seek(0)
         for result, parts_entry in zip(load_netmhcpan_results(temp_output), parts.items()):
             result_csv = ','.join(str(getattr(result, field)) for field in NetMHCpanResult.fields)
-            for _, header in parts_entry[1]:
+            for _, header, reference_peptide in parts_entry[1]:
                 print(header, end=',')
                 print(mhc, end=',')
+                print(reference_peptide, end=',')
                 print(result_csv)
-    print(f"{skipped} genomes skipped, {good} good", file=sys.stderr)
+    print(f"{skipped} entries skipped, {good} good", file=sys.stderr)
