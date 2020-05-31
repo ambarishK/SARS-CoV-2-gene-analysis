@@ -7,7 +7,7 @@ MAX_ENTRIES = 40
 NETMHCPAN_LOCATION = data_path('netMHCpan')
 
 if len(sys.argv) < 2:
-    print('USAGE:\nnetmhcpan HLAs...')
+    print('USAGE:\nnetmhcpan HLAs...', file=sys.stderr)
     exit(1)
 
 def get_mhc():
@@ -16,23 +16,23 @@ def get_mhc():
 class GenomeError(Exception):
     pass
 
-def find_peptide_in_genome(genome_peptide, peptide_data, peptide_location, search_radius=10, min_peptide_len=8):
-    m = min((genome_peptide[peptide_location + x:peptide_location + x + len(peptide_data)] for x in range(-search_radius, search_radius + 1)), key=lambda x: Levenshtein.distance(x, peptide_data))
+def find_peptide_in_genome(gene_protein, peptide_data, peptide_location, search_radius=10, min_peptide_len=8):
+    m = min((gene_protein[peptide_location + x:peptide_location + x + len(peptide_data)] for x in range(-search_radius, search_radius + 1)), key=lambda x: Levenshtein.distance(x, peptide_data))
     if len(m) >= min_peptide_len:
         return m
     raise GenomeError
 
 with open(data_path('netmhcpan_peptides.txt'), 'r') as file:
-    peptides = [(p[0], int(p[1])) for p in (p.split('\t') for p in file.read().split('\n') if len(p) > 0)]
+    peptides = [(p[0], p[1], int(p[2])) for p in (p.split('\t') for p in file.read().split('\n') if len(p) > 0)]
 
 def get_genome_part_to_analyze(genome, contents):
     result = {}
     for gene in genome[0]["genes"]:
-        gene_peptide = translate(transcribe(contents[gene["begin"]:gene["end"]]))
-        for peptide_data, peptide_location in peptides:
-            if peptide_location >= gene["begin"] // 3 and peptide_location < gene["end"] // 3 and gene["invalid_nucleotides"] == 0:
+        gene_protein = translate(transcribe(contents[gene["begin"]:gene["end"]]))
+        for peptide_data, peptide_gene, peptide_location in peptides:
+            if peptide_gene == gene["name"] and gene["invalid_nucleotides"] == 0:
                 try:
-                    result[peptide_data] = find_peptide_in_genome(gene_peptide, peptide_data, peptide_location - gene["begin"] // 3)
+                    result[peptide_data] = find_peptide_in_genome(gene_protein, peptide_data, peptide_location)
                 except GenomeError:
                     pass
     return result
@@ -108,7 +108,7 @@ with open(data_path(CALCULATED_GENOMES_DATA), 'r') as genomes, tempfile.NamedTem
     for part in parts:
         print(part, file=temp_input)
     temp_input.flush()
-    print(','.join(["header", "mhc", "reference_peptide"] + NetMHCpanResult.fields))
+    print(','.join(["header", "mhc", "reference_peptide", "matched_peptide"] + NetMHCpanResult.fields))
     for mhc in get_mhc():
         print(f"Starting netMHCpan {mhc}", file=sys.stderr)
         subprocess.check_output(f'{NETMHCPAN_LOCATION} -a {mhc} -p -f {temp_input.name} > {temp_output.name}', shell=True)
@@ -120,5 +120,6 @@ with open(data_path(CALCULATED_GENOMES_DATA), 'r') as genomes, tempfile.NamedTem
                 print(header, end=',')
                 print(mhc, end=',')
                 print(reference_peptide, end=',')
+                print(parts_entry[0], end=',')
                 print(result_csv)
     print(f"{skipped} entries skipped, {good} good", file=sys.stderr)

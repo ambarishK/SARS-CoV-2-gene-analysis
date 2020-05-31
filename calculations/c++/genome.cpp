@@ -157,7 +157,6 @@ std::unique_ptr<Genome> Genome::load_reference(std::istream& ref_genes_file, std
 		size_t gene_begin;
 		size_t gene_end;
 		while(ref_genes_file >> gene_name >> gene_begin >> gene_end) {
-			--gene_begin;
 			if(gene_end <= gene_begin || gene_end >= genome->data.size()) {
 				throw std::runtime_error("Invalid boundaries in line starting with " + gene_name);
 			}
