@@ -8,13 +8,15 @@
 #include <iostream>
 #include <map>
 #include <random>
+#include <set>
 
 using namespace filenames;
 
 const std::string NETMHCPAN_LOCATION = data_path("netMHCpan");
 
 std::vector<std::string> get_mhc_names() {
-	std::string filename;
+	std::string mhc_pseudo_filename;
+	std::string allelenames_filename;
 	{
 		TempFile<std::iostream> tmp_file;
 		auto netmhcpan_return_code = system((NETMHCPAN_LOCATION + " > " + tmp_file.get_filename()).data());
@@ -24,17 +26,38 @@ std::vector<std::string> get_mhc_names() {
 		for(int i = 0; i < 11; ++i) {
 			tmp_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		}
-		std::getline(tmp_file, filename);
-		filename = filename.substr(24, filename.size() - 24 - 31);
+		std::getline(tmp_file, mhc_pseudo_filename);
+		for(int i = 0; i < 17; ++i) {
+			tmp_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		}
+		std::getline(tmp_file, allelenames_filename);
+		mhc_pseudo_filename = mhc_pseudo_filename.substr(24, mhc_pseudo_filename.size() - 24 - 31);
+		allelenames_filename = allelenames_filename.substr(23, allelenames_filename.size() - 23 - 34);
 	}
-	std::ifstream names_file = open_file_i(filename);
-	std::string entry;
+	std::set<std::string> mhc_pseudo_entries;
+	{
+		std::ifstream mhc_pseudo = open_file_i(mhc_pseudo_filename);
+		std::string entry;
+		while(true) {
+			mhc_pseudo >> entry;
+			if(mhc_pseudo) {
+				mhc_pseudo_entries.insert(std::move(entry));
+				mhc_pseudo.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			} else {
+				break;
+			}
+		}
+	}
 	std::vector<std::string> result;
+	std::ifstream allelenames = open_file_i(allelenames_filename);
+	std::string entry;
 	while(true) {
-		names_file >> entry;
-		if(names_file) {
-			result.push_back(entry);
-			names_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		allelenames >> entry;
+		if(allelenames) {
+			if(mhc_pseudo_entries.count(entry)) {
+				result.push_back(std::move(entry));
+			}
+			allelenames.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		} else {
 			return result;
 		}
@@ -130,7 +153,7 @@ struct NetMHCPanResultLine {
 	int il;
 	std::string icore;
 	double score_el;
-	double bindlevel;
+	double rank_el;
 
 	static std::vector<NetMHCPanResultLine> parse(std::istream& input) {
 		for(int i = 0; i < 49; ++i) {
@@ -140,29 +163,29 @@ struct NetMHCPanResultLine {
 		std::vector<NetMHCPanResultLine> result;
 		while(true) {
 			NetMHCPanResultLine l;
-			input >> l.pos >> garbage >> garbage >> l.core >> l.of >> l.gp >> l.gl >> l.ip >> l.il >> l.icore >> garbage >> l.score_el >> l.bindlevel;
+			input >> l.pos >> garbage >> garbage >> l.core >> l.of >> l.gp >> l.gl >> l.ip >> l.il >> l.icore >> garbage >> l.score_el >> l.rank_el;
+			input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 			if(input) {
 				result.push_back(std::move(l));
 			} else {
-				break;
+				return result;;
 			}
 		}
-		return result;
 	}
 private:
 	NetMHCPanResultLine() = default;
-	NetMHCPanResultLine(int pos, std::string core, int of, int gp, int gl, int ip, int il, std::string icore, double score_el, double bindlevel) : pos(pos), core(std::move(core)), of(of), gp(gp), gl(gl), ip(ip), il(il), icore(std::move(icore)), score_el(score_el), bindlevel(bindlevel) {}
+	NetMHCPanResultLine(int pos, std::string core, int of, int gp, int gl, int ip, int il, std::string icore, double score_el, double rank_el) : pos(pos), core(std::move(core)), of(of), gp(gp), gl(gl), ip(ip), il(il), icore(std::move(icore)), score_el(score_el), rank_el(rank_el) {}
 	friend struct python_loader<NetMHCPanResultLine>;
 };
 
 void print_as_python(std::ostream& o, const NetMHCPanResultLine& l) {
-	print_as_python_dict(o, "pos", l.pos, "core", l.core, "of", l.of, "gp", l.gp, "gl", l.gl, "ip", l.ip, "il", l.il, "icore", l.icore, "score_el", l.score_el, "bindlevel", l.bindlevel);
+	print_as_python_dict(o, "pos", l.pos, "core", l.core, "of", l.of, "gp", l.gp, "gl", l.gl, "ip", l.ip, "il", l.il, "icore", l.icore, "score_el", l.score_el, "rank_el", l.rank_el);
 }
 
 template<>
 struct python_loader<NetMHCPanResultLine> {
 	static NetMHCPanResultLine load(std::istream& input) {
-		return std::apply([](auto&&... args){return NetMHCPanResultLine(std::forward<decltype(args)>(args)...);}, decltype(python_loader_struct<int, std::string, int, int, int, int, int, std::string, double, double>::with_names_values("pos"_sl, "core"_sl, "of"_sl, "gp"_sl, "gl"_sl, "ip"_sl, "il"_sl, "icore"_sl, "score_el"_sl, "bindlevel"_sl))::load(input).as_tuple());
+		return std::apply([](auto&&... args){return NetMHCPanResultLine(std::forward<decltype(args)>(args)...);}, decltype(python_loader_struct<int, std::string, int, int, int, int, int, std::string, double, double>::with_names_values("pos"_sl, "core"_sl, "of"_sl, "gp"_sl, "gl"_sl, "ip"_sl, "il"_sl, "icore"_sl, "score_el"_sl, "rank_el"_sl))::load(input).as_tuple());
 	}
 };
 
@@ -217,7 +240,9 @@ int main(int argc, char* argv[]){
 	long long max_genomes = std::stoll(argv[1]);
 	long long max_mhcs = std::stoll(argv[2]);
 	std::vector<std::string> mhcs = get_mhc_names();
+	std::cerr << "Total MHCs: " << mhcs.size() << std::endl;
 	if(max_mhcs > 0 && (size_t) max_mhcs < mhcs.size()) {
+		std::cerr << "Choosing " << max_mhcs << std::endl;
 		std::vector<std::string> mhcs_sample;
 		mhcs_sample.reserve(max_mhcs);
 		std::sample(mhcs.begin(), mhcs.end(), std::back_inserter(mhcs_sample), max_mhcs, std::mt19937_64{/*std::random_device{}()*/});
@@ -251,24 +276,27 @@ int main(int argc, char* argv[]){
 		std::cerr << "Groups printed." << std::endl;
 	}
 	std::cout << argc - 2  << '\n';
-
-	for(const std::string& mhc: mhcs) {
+	std::mutex output_mutex;
+	for_each_with_progress(mhcs.begin(), mhcs.end(), [&output_mutex, expected_size{to_netmhcpan.size()}, &netmhc_input_filename = netmhc_input.get_filename()](const std::string& mhc){
 		TempFile<std::istream> netmhc_output;
 		{
-			std::string command = NETMHCPAN_LOCATION + " -a " + mhc + " -p -f " + netmhc_input.get_filename() + " > " + netmhc_output.get_filename();
+			std::string command = NETMHCPAN_LOCATION + " -a " + mhc + " -p -f " + netmhc_input_filename + " > " + netmhc_output.get_filename();
 			auto netmhcpan_return_code = system(command.data());
 			if(netmhcpan_return_code) {
 				throw std::runtime_error("Invalid return code from netMHCpan " + std::to_string(netmhcpan_return_code));
 			}
 		}
 		std::vector<NetMHCPanResultLine> parsed = NetMHCPanResultLine::parse(netmhc_output);
-		if(parsed.size() != to_netmhcpan.size()) {
-			throw std::runtime_error("Invalid number of records from netMHCpan " + std::to_string(parsed.size()) + " instead of " + std::to_string(to_netmhcpan.size()));
+		if(parsed.size() != expected_size) {
+			throw std::runtime_error("Invalid number of records from netMHCpan " + std::to_string(parsed.size()) + " instead of " + std::to_string(expected_size));
 		}
-		std::cout << mhc << '\n';
-		for(const NetMHCPanResultLine& result_line: parsed) {
-			print_as_python(std::cout, result_line);
-			std::cout << '\n';
+		{
+			const std::lock_guard<std::mutex> lock(output_mutex);
+			std::cout << mhc << '\n';
+			for(const NetMHCPanResultLine& result_line: parsed) {
+				print_as_python(std::cout, result_line);
+				std::cout << '\n';
+			}
 		}
-	}
+	}, std::cerr);
 }
