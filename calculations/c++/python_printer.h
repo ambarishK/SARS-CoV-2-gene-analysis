@@ -117,6 +117,18 @@ void print_as_python_dict(std::ostream& o, const K& key, const V& value, const T
 	o << "}";
 }
 
+template<typename K, typename V>
+void print_as_python(std::ostream& o, const std::unordered_map<K, V>& map) {
+	o << "{";
+	for(const auto&[key, value] : map) {
+		print_as_python(o, key);
+		o << ": ";
+		print_as_python(o, value);
+		o << ", ";
+	}
+	o << "}";
+}
+
 template<typename T>
 struct python_loader;
 
@@ -170,7 +182,7 @@ struct python_loader<char> {
 };
 
 template<typename T>
-struct python_loader_int {
+struct python_loader_num {
 	static T load(std::istream& input) {
 		T num;
 		input >> num;
@@ -182,28 +194,34 @@ struct python_loader_int {
 };
 
 template<>
-struct python_loader<int> : python_loader_int<int> {};
+struct python_loader<int> : python_loader_num<int> {};
 
 template<>
-struct python_loader<unsigned> : python_loader_int<unsigned> {};
+struct python_loader<unsigned> : python_loader_num<unsigned> {};
 
 template<>
-struct python_loader<short> : python_loader_int<short> {};
+struct python_loader<short> : python_loader_num<short> {};
 
 template<>
-struct python_loader<unsigned short> : python_loader_int<unsigned short> {};
+struct python_loader<unsigned short> : python_loader_num<unsigned short> {};
 
 template<>
-struct python_loader<long> : python_loader_int<long> {};
+struct python_loader<long> : python_loader_num<long> {};
 
 template<>
-struct python_loader<unsigned long> : python_loader_int<unsigned long> {};
+struct python_loader<unsigned long> : python_loader_num<unsigned long> {};
 
 template<>
-struct python_loader<long long> : python_loader_int<long long> {};
+struct python_loader<long long> : python_loader_num<long long> {};
 
 template<>
-struct python_loader<unsigned long long> : python_loader_int<unsigned long long> {};
+struct python_loader<unsigned long long> : python_loader_num<unsigned long long> {};
+
+template<>
+struct python_loader<double> : python_loader_num<double> {};
+
+template<>
+struct python_loader<float> : python_loader_num<float> {};
 
 template<typename T>
 struct python_loader<std::vector<T>> {

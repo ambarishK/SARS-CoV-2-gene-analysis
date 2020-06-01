@@ -6,13 +6,40 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <string_view>
-#include <sstream>
 #include <map>
+#include <random>
 
 using namespace filenames;
 
 const std::string NETMHCPAN_LOCATION = data_path("netMHCpan");
+
+std::vector<std::string> get_mhc_names() {
+	std::string filename;
+	{
+		TempFile<std::iostream> tmp_file;
+		auto netmhcpan_return_code = system((NETMHCPAN_LOCATION + " > " + tmp_file.get_filename()).data());
+		if(netmhcpan_return_code) {
+			throw std::runtime_error("Invalid return code from netMHCpan " + std::to_string(netmhcpan_return_code));
+		}
+		for(int i = 0; i < 11; ++i) {
+			tmp_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		}
+		std::getline(tmp_file, filename);
+		filename = filename.substr(24, filename.size() - 24 - 31);
+	}
+	std::ifstream names_file = open_file_i(filename);
+	std::string entry;
+	std::vector<std::string> result;
+	while(true) {
+		names_file >> entry;
+		if(names_file) {
+			result.push_back(entry);
+			names_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		} else {
+			return result;
+		}
+	}
+}
 
 class PeptideNotFoundException : public std::exception {};
 
@@ -105,8 +132,6 @@ struct NetMHCPanResultLine {
 	double score_el;
 	double bindlevel;
 
-	static constexpr const char* csv_header = "pos,core,of,gp,gl,ip,il,icore,score_el,bindlevel";
-
 	static std::vector<NetMHCPanResultLine> parse(std::istream& input) {
 		for(int i = 0; i < 49; ++i) {
 			input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -126,72 +151,109 @@ struct NetMHCPanResultLine {
 	}
 private:
 	NetMHCPanResultLine() = default;
+	NetMHCPanResultLine(int pos, std::string core, int of, int gp, int gl, int ip, int il, std::string icore, double score_el, double bindlevel) : pos(pos), core(std::move(core)), of(of), gp(gp), gl(gl), ip(ip), il(il), icore(std::move(icore)), score_el(score_el), bindlevel(bindlevel) {}
+	friend struct python_loader<NetMHCPanResultLine>;
 };
 
-std::ostream& operator<<(std::ostream& o, const NetMHCPanResultLine& n) {
-	return o << n.pos << ',' << n.core << ',' << n.of << ',' << n.gp << ',' << n.gl << ',' << n.ip << ',' << n.il << ',' << n.icore << ',' << n.score_el << ',' << n.bindlevel;
+void print_as_python(std::ostream& o, const NetMHCPanResultLine& l) {
+	print_as_python_dict(o, "pos", l.pos, "core", l.core, "of", l.of, "gp", l.gp, "gl", l.gl, "ip", l.ip, "il", l.il, "icore", l.icore, "score_el", l.score_el, "bindlevel", l.bindlevel);
+}
+
+template<>
+struct python_loader<NetMHCPanResultLine> {
+	static NetMHCPanResultLine load(std::istream& input) {
+		return std::apply([](auto&&... args){return NetMHCPanResultLine(std::forward<decltype(args)>(args)...);}, decltype(python_loader_struct<int, std::string, int, int, int, int, int, std::string, double, double>::with_names_values("pos"_sl, "core"_sl, "of"_sl, "gp"_sl, "gl"_sl, "ip"_sl, "il"_sl, "icore"_sl, "score_el"_sl, "bindlevel"_sl))::load(input).as_tuple());
+	}
+};
+
+std::tuple<size_t, size_t, std::map<std::string, std::vector<std::pair<size_t, std::string>>>> get_data_to_netmhcpan(std::istream& genomes_file, std::istream& genomes_raw_file, ssize_t max_genomes, const std::vector<std::tuple<std::string, std::string, size_t>>& peptides, std::ostream& info) {
+	std::map<std::string, std::vector<std::pair<size_t, std::string>>> to_netmhcpan; // peptide_in_genome -> {{id, reference_peptide}}
+	size_t size, good = 0, skipped = 0;
+	genomes_file >> size;
+	std::vector<std::pair<std::string, std::string>> genomes_raw = Genome::load_genomes_raw(genomes_raw_file, info);
+	if(size != genomes_raw.size()) {
+		throw std::runtime_error("Size mismatch, recalculate!");
+	}
+	if(max_genomes > 0) {
+		info << "Genomes limit is set at " << max_genomes << std::endl;
+		size = std::min(size, (size_t) max_genomes);
+	}
+	for(size_t i = 0; i < size; ++i) {
+		genomes_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		genomes_file.get();
+		std::unique_ptr<Genome> genome = Genome::from_parsed_python(python_loader<Genome::python_print_type>::load(genomes_file), std::move(genomes_raw[i].second));
+		if(genome->header != genomes_raw[i].first) {
+			throw std::runtime_error("Header mismatch at position " + std::to_string(i));
+		}
+		std::vector<std::tuple<const std::string*, std::shared_ptr<std::string>, size_t>> peptides_in_genome = find_peptides_in_genome(peptides, *genome);
+		good += peptides_in_genome.size();
+		skipped += peptides.size() - peptides_in_genome.size();
+		for(const auto&[reference_peptide, genome_protein, peptide_in_genome_location] : peptides_in_genome) {
+			to_netmhcpan[genome_protein->substr(peptide_in_genome_location, reference_peptide->size())].emplace_back(i, *reference_peptide);
+		}
+	}
+	info << good << " good entries, " << skipped << " skipped, " << to_netmhcpan.size() << " different peptides to analyze." << std::endl;
+	return {good, skipped, to_netmhcpan};
+}
+
+void print_groups(std::ostream& out, const std::map<std::string, std::vector<std::pair<size_t, std::string>>>& to_netmhcpan) {
+	out << to_netmhcpan.size() << "\n";
+	for(const auto&[peptide_in_genome, v] : to_netmhcpan) {
+		std::unordered_map<std::string, std::vector<size_t>> different_peptides;
+		for(const auto&[id, reference_peptide] : v) {
+			different_peptides[reference_peptide].push_back(id);
+		}
+		out << peptide_in_genome << '\n';
+		print_as_python(out, different_peptides);
+		out << '\n';
+	}
 }
 
 int main(int argc, char* argv[]){
 	if(argc < 3) {
-		std::cerr << "USAGE:\nnetmhcpan MAX_GENOMES HLAs...\n";
+		std::cerr << "USAGE:\nnetmhcpan MAX_GENOMES MAX_MHCs\n";
 		return 1;
 	}
 	long long max_genomes = std::stoll(argv[1]);
-	std::unique_ptr<Genome> reference;
-	{
-		std::ifstream genes = open_file_i(data_path(REFERENCE_GENES));
-		std::ifstream genome = open_file_i(data_path(REFERENCE_GENOME));
-		reference = Genome::load_reference(genes, genome);
+	long long max_mhcs = std::stoll(argv[2]);
+	std::vector<std::string> mhcs = get_mhc_names();
+	if(max_mhcs > 0 && (size_t) max_mhcs < mhcs.size()) {
+		std::vector<std::string> mhcs_sample;
+		mhcs_sample.reserve(max_mhcs);
+		std::sample(mhcs.begin(), mhcs.end(), std::back_inserter(mhcs_sample), max_mhcs, std::mt19937_64{/*std::random_device{}()*/});
+		mhcs = std::move(mhcs_sample);
 	}
-	std::vector<std::tuple<std::string, std::string, size_t>> peptides;
-	{
-		std::ifstream peptides_file = open_file_i(data_path(PEPTIDES_INPUT));
-		peptides = load_peptides(peptides_file);
-	}
-	size_t good = 0, skipped = 0;
-	std::map<std::string, std::vector<std::pair<std::string, std::string>>> to_netmhcpan; // peptide_in_genome -> {{header, reference_peptide}}
+
+	std::map<std::string, std::vector<std::pair<size_t, std::string>>> to_netmhcpan; // peptide_in_genome -> {{id, reference_peptide}}
 	{
 		std::ifstream genomes_file = open_file_i(data_path(CALCULATED_GENOMES_DATA));
 		std::ifstream genomes_raw_file = open_file_i(data_path(FILTERED_GENOMES));
-		size_t size;
-		genomes_file >> size;
-		std::vector<std::pair<std::string, std::string>> genomes_raw = Genome::load_genomes_raw(genomes_raw_file, std::cerr);
-		if(size != genomes_raw.size()) {
-			throw std::runtime_error("Size mismatch, recalculate!");
-		}
-		if(max_genomes > 0) {
-			std::cerr << "Genomes limit is set at " << max_genomes << std::endl;
-			size = std::min(size, (size_t) max_genomes);
-		}
-		for(size_t i = 0; i < size; ++i) {
-			genomes_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-			genomes_file.get();
-			std::unique_ptr<Genome> genome = Genome::from_parsed_python(python_loader<Genome::python_print_type>::load(genomes_file), std::move(genomes_raw[i].second));
-			if(genome->header != genomes_raw[i].first) {
-				throw std::runtime_error("Header mismatch at position " + std::to_string(i));
-			}
-			std::vector<std::tuple<const std::string*, std::shared_ptr<std::string>, size_t>> peptides_in_genome = find_peptides_in_genome(peptides, *genome);
-			good += peptides_in_genome.size();
-			skipped += peptides.size() - peptides_in_genome.size();
-			for(const auto&[reference_peptide, genome_protein, peptide_in_genome_location] : peptides_in_genome) {
-				to_netmhcpan[genome_protein->substr(peptide_in_genome_location, reference_peptide->size())].emplace_back(genomes_raw[i].first, *reference_peptide);
-			}
-		}
+		std::ifstream peptides_file = open_file_i(data_path(PEPTIDES_INPUT));
+		std::vector<std::tuple<std::string, std::string, size_t>> peptides = load_peptides(peptides_file);
+		auto t = get_data_to_netmhcpan(genomes_file, genomes_raw_file, max_genomes, peptides, std::cerr);
+		to_netmhcpan = std::move(std::get<2>(t));
 	}
 	if(to_netmhcpan.empty()) {
 		throw std::runtime_error("Empty input or all skipped!");
 	}
-	std::cerr << good << " good entries, " << skipped << " skipped, " << to_netmhcpan.size() << " different peptides to analyze." << std::endl;
+
+	std::cerr << "Printing netMHCpan input..." << std::endl;
 	TempFile<std::ostream> netmhc_input;
 	for(const auto&[peptide_in_genome, _] : to_netmhcpan) {
 		netmhc_input << peptide_in_genome << '\n';
 	}
 	netmhc_input.flush();
-	std::cout << "header,mhc,reference_peptide,matched_peptide," << NetMHCPanResultLine::csv_header << '\n';
-	for(int i = 2; i < argc; ++i) {
+	std::cerr << "netMHCpan input printed." << std::endl;
+
+	{
+		std::cerr << "Printing groups..." << std::endl;
+		print_groups(std::cout, to_netmhcpan);
+		std::cerr << "Groups printed." << std::endl;
+	}
+	std::cout << argc - 2  << '\n';
+
+	for(const std::string& mhc: mhcs) {
 		TempFile<std::istream> netmhc_output;
-		const char* mhc = argv[i];
 		{
 			std::string command = NETMHCPAN_LOCATION + " -a " + mhc + " -p -f " + netmhc_input.get_filename() + " > " + netmhc_output.get_filename();
 			auto netmhcpan_return_code = system(command.data());
@@ -203,13 +265,10 @@ int main(int argc, char* argv[]){
 		if(parsed.size() != to_netmhcpan.size()) {
 			throw std::runtime_error("Invalid number of records from netMHCpan " + std::to_string(parsed.size()) + " instead of " + std::to_string(to_netmhcpan.size()));
 		}
-		auto parsed_result_iter = parsed.begin();
-		for(const auto&[peptide_in_genome, v] : to_netmhcpan) {
-			std::string common_part = [&](){std::stringstream ss; ss << *parsed_result_iter; return ss.str();}();
-			for(const auto&[header, reference_peptide] : v) {
-				std::cout << header << ',' << mhc << ',' << reference_peptide << ',' << peptide_in_genome << ',' << common_part << '\n';
-			}
-			++parsed_result_iter;
+		std::cout << mhc << '\n';
+		for(const NetMHCPanResultLine& result_line: parsed) {
+			print_as_python(std::cout, result_line);
+			std::cout << '\n';
 		}
 	}
 }
