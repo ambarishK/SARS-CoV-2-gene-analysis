@@ -14,6 +14,7 @@ constexpr const char* EXTRA_COMPARISONS_RESULTS = "extra_comparisons_results.txt
 constexpr const char* DISTANCES_CSV = "distances.csv";
 constexpr const char* COMPARISONS_CSV = "comparisons.csv";
 constexpr const char* MERGED_CSV = "genome_neigh.csv";
+constexpr const char* PEPTIDES_INPUT = "netmhcpan_peptides.txt";
 
 std::string data_path(const char* file, int sub_level = 0);
 }

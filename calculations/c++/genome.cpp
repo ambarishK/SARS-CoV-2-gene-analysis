@@ -266,7 +266,7 @@ std::vector<std::pair<std::string, std::string>> Genome::load_genomes_raw(std::i
 	return genomes_raw;
 }
 
-std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> Genome::load_genomes(std::istream& input, const Genome& reference, std::ostream& info) {
+std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> Genome::calculate_genomes(std::istream& input, const Genome& reference, std::ostream& info) {
 	std::vector<std::pair<std::string, std::string>> genomes_raw = load_genomes_raw(input, info); //header, data
 	std::vector<std::pair<Genome*, Genome::ComparisonResult*>> genomes_p_r(genomes_raw.size(), std::make_pair<Genome*, Genome::ComparisonResult*>(nullptr, nullptr));
 	try {
@@ -374,14 +374,7 @@ Gene::ComparisonResult Gene::compare_to(const Gene& reference) const {
 }
 
 std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> Genome::load_from_files(const Genome& reference, std::istream& genomes_file, std::istream& input_file, std::ostream& info) {
-	std::unordered_map<std::string, std::string> genomes_raw_map; //header -> data
-	{
-		std::vector<std::pair<std::string, std::string>> genomes_raw; //header, data
-		genomes_raw = Genome::load_genomes_raw(genomes_file, info);
-		for(const auto&[h, v] : genomes_raw) {
-			genomes_raw_map.emplace(h, std::move(v));
-		}
-	}
+	std::vector<std::pair<std::string, std::string>> genomes_raw = load_genomes_raw(genomes_file, info); //header, data
 	std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> output;
 	info << "Parsing distances...";
 	info << std::endl;
@@ -394,12 +387,19 @@ std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::Compariso
 		}
 		std::vector<DataT> genomes_extra_data;
 		genomes_extra_data.reserve(size);
+		output.reserve(size);
 		for(size_t i = 0; i < size; ++i) {
 			genomes_extra_data.push_back(python_loader<DataT>::load(input_file));
 		}
-		for(const auto& g : genomes_extra_data) {
-			auto genome = Genome::from_parsed_python(g.first, std::move(genomes_raw_map.at(std::get<0>(g.first.as_tuple()))));
-			auto comparison = std::make_unique<Genome::ComparisonResult>(Genome::ComparisonResult::from_parsed_python(g.second, *genome, reference));
+		if(size != genomes_raw.size()) {
+			throw std::runtime_error("Size mismatch, recalculate!");
+		}
+		for(size_t i = 0; i < size; ++i) {
+			auto genome = Genome::from_parsed_python(genomes_extra_data[i].first, std::move(genomes_raw[i].second));
+			if(genome->header != genomes_raw[i].first) {
+				throw std::runtime_error("Header mismatch at position " + std::to_string(i));
+			}
+			auto comparison = std::make_unique<Genome::ComparisonResult>(Genome::ComparisonResult::from_parsed_python(genomes_extra_data[i].second, *genome, reference));
 			output.emplace_back(std::move(genome), std::move(comparison));
 		}
 	}

@@ -5,6 +5,9 @@
 #include <iterator>
 #include <mutex>
 
+#include <ext/stdio_filebuf.h>
+#include <unistd.h>
+
 template<typename It1, typename It2, typename F>
 void transform_with_progress(It1 input_begin, It1 input_end, It2 output_begin, F&& function, std::ostream& output) {
 	std::atomic<size_t> done = 0;
@@ -53,3 +56,18 @@ void for_each_with_progress(It1 input_begin, It1 input_end, F&& function, std::o
 std::ifstream open_file_i(const std::string& filename);
 
 std::ofstream open_file_o(const std::string& filename);
+
+template<typename T>
+class TempFile : public std::enable_if_t<std::is_same_v<T, std::istream> || std::is_same_v<T, std::ostream> || std::is_same_v<T, std::iostream>, T> {
+	std::string filename;
+	__gnu_cxx::stdio_filebuf<char> filebuf;
+public:
+	TempFile();
+	const std::string& get_filename() const;
+	virtual ~TempFile();
+};
+
+template<typename T>
+bool compare_pointer_contents(const T* a, const T* b) {
+	return (*a) < (*b);
+}

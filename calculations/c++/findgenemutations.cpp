@@ -24,7 +24,7 @@ void calculate_genomes(const Genome& reference, const std::string& genomes_filen
 	std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> genomes;
 	{
 		auto input = open_file_i(genomes_filename);
-		genomes = Genome::load_genomes(input, reference, std::cout);
+		genomes = Genome::calculate_genomes(input, reference, std::cout);
 	}
 	{
 		auto output = open_file_o(output_filename);

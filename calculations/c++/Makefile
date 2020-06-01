@@ -2,7 +2,7 @@
 CXX := g++
 CXX_FLAGS := -g -std=c++17 -Werror -Wall -Wextra -march=native -ltbb -Wno-unused-command-line-argument
 
-EXECUTABLES := findgenemutations.exe findrelatives.exe
+EXECUTABLES := findgenemutations.exe findrelatives.exe netmhcpan.exe
 CPP = $(wildcard *.cpp)
 OBJ = $(CPP:%.cpp=%.o)
 DEP = $(OBJ:%.o=%.d)

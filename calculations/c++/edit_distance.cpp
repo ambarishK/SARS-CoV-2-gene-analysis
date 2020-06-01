@@ -231,6 +231,9 @@ std::string rebuild(const std::vector<EditOperation>& eos, const char *string1, 
 }
 
 std::optional<std::vector<EditOperation>> edit_distance_int(const char *string1, uint16_t len1, const char *string2, uint16_t len2, uint16_t limit) {
+	if(strncmp(string1, string2, std::min(len1, len2)) == 0) {
+		return {{}};
+	}
 	std::vector<int> s1(len1);
 	std::vector<int> s2(len2);
 	for(uint16_t i = 0; i < len1; ++i) {

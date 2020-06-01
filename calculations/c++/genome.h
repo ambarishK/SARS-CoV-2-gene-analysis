@@ -67,7 +67,7 @@ struct Genome {
 
 	static std::vector<std::pair<std::string, std::string>> load_genomes_raw(std::istream& input, std::ostream& info);
 
-	static std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> load_genomes(std::istream& input, const Genome& reference, std::ostream& info);
+	static std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> calculate_genomes(std::istream& input, const Genome& reference, std::ostream& info); /* this function has to preserve the order */
 
 	static std::vector<std::pair<std::unique_ptr<Genome>, std::unique_ptr<Genome::ComparisonResult>>> load_from_files(const Genome& reference, std::istream& genomes_file, std::istream& input_file, std::ostream& info);
 
