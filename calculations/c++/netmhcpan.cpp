@@ -275,7 +275,7 @@ int main(int argc, char* argv[]){
 		print_groups(std::cout, to_netmhcpan);
 		std::cerr << "Groups printed." << std::endl;
 	}
-	std::cout << argc - 2  << '\n';
+	std::cout << mhcs.size() << '\n';
 	std::mutex output_mutex;
 	for_each_with_progress(mhcs.begin(), mhcs.end(), [&output_mutex, expected_size{to_netmhcpan.size()}, &netmhc_input_filename = netmhc_input.get_filename()](const std::string& mhc){
 		TempFile<std::istream> netmhc_output;
